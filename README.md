@@ -7,4 +7,3 @@ http://minorplanetcenter.net/Extended_Files/Extended_MPCORB_Data_Format_Manual.p
 
 Example files:
 http://www.euronear.org/tools/data/MPCReportExample.txt
-http://www.minorplanetcenter.net/iau/MPCORB/NEA.txt (check if correct)
