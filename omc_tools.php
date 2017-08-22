@@ -1,7 +1,7 @@
 <?php
 
 //#TODO ask Ovidiu what's with this bit
-function $lettersToNumbers($letter) {
+function lettersToNumbers($letter) {
 	$map = array(
 		"0" => "0", 
 		"1" => "1",
@@ -91,8 +91,8 @@ function readMPC($fileName) {
 	if ($file = fopen($fileName)) {
 		// skip header
 		do {
-			$line = fgets($file, 1024)
-		} while (!feof($file) && trim($line) != "") // there's an empty line between header and data lines
+			$line = fgets($file, 1024);
+		} while (!feof($file) && trim($line) != ""); // there's an empty line between header and data lines
 
 		// read data lines
 		$observations = array();
@@ -123,7 +123,7 @@ function readMPC($fileName) {
 			}
 			$obs["number"] = $number;
 			$obs["name"] = $tempDes;
-			$obs["NEODYS"] = trim($obs["number"]) != "" ? trim($obs["number"]) : trim($obs["name"])
+			$obs["NEODYS"] = trim($obs["number"]) != "" ? trim($obs["number"]) : trim($obs["name"]);
 			$obs["year"] = trim(substr($line, 15, 4));
 			$obs["month"] = trim(substr($line, 20, 2));
 			$obs["day"] = trim(substr($line, 23, 8));
@@ -141,17 +141,17 @@ function readMPC($fileName) {
 					!is_numeric($obs["delgr"]) || !is_numeric($obs["delmin"]) || !is_numeric($obs["delsec"])) {
 				$notMPC = false;
 			}
-			
+			$obs["JD"] = julianDay($obs["year"], $obs["month"], $obs["day"]);
 			// add it to observation array
 			if ($notMPC === true) { 
 				array_push($observations, $obs);
 			}
-		} while (!feof($file) && $notMPC === true && trim($line) != "") // last line is empty
+		} while (!feof($file) && $notMPC === true && trim($line) != ""); // last line is empty
 
 		if ($notMPC === true) {
 			return "ERROR: File not in MPC format";
 		}
-		return($observations)
+		return $observations;
 	} else {
 		return "ERROR: File not found";
 	}	
