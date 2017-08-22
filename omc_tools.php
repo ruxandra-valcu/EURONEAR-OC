@@ -88,6 +88,34 @@ function julianDay($year, $month, $day) {
 }
 
 /**
+* given a JD, returns the gregorian calendar date as an array of year, month, day, hour, minute
+*	ref: J. Meeus, Astronomical Algorithms
+*/
+function gregorianDate($julianDay) {
+	$julianDay += 0.5;
+	$Z = floor($julianDay);
+	$F = $julianDay - floor($julianDay);
+	$A = $Z;
+	if ($A >= 2291161) {
+		$a = floor(($Z - 1867216.25) / 36524.25);
+		$A = $Z + 1 + $a - floor($a / 4);
+	}
+	$B = $A + 1524;
+	$C = floor(($B - 122.1) / 365.25);
+	$D = floor(365.25 * $C);
+	$E = floor(($B - $D) / 30.6001);
+	$dayD = $B - $D - floor(30.6001 * $E) + $F;
+	$month = $E < 14 ? $E - 1 : $E - 13;
+	$year = $month > 2 ? $C - 4716 : $C - 4715;
+	$day = floor($dayD);
+	$hm = 24 * ($dayD - $day);
+	$hour = floor($hm);
+	$minute = floor(60 * ($hm - $hour)); 
+	$date = array("year" => $year, "month" => $month, "day" => $day, "hour" => $hour, "minute" => $minute);
+	return $date;
+}
+
+/**
 * parses a MPC file (given by handle) into a PHP array containing just the observation data
 */
 function readMPC($fileName) {
@@ -104,7 +132,7 @@ function readMPC($fileName) {
 		do {
 			$line = fgets($file, 1024);
 			if (trim($line) === "") {
-				break; //we're on the last, empty line, pointless to go through the parsing
+				continue; //empty line, pointless to go through the parsing
 			}
 			$obs = array();
 			$number = substr($line, 0, 5); //read asteroid number (if exists) and process
@@ -149,7 +177,7 @@ function readMPC($fileName) {
 			if ($notMPC == false) { 
 				array_push($observations, $obs);
 			}
-		} while (!feof($file) && $notMPC == false && trim($line) != ""); // last line is empty
+		} while (!feof($file) && $notMPC == false); // last line is empty
 
 		if ($notMPC === true) {
 			return "ERROR: File not in MPC format";
@@ -171,6 +199,28 @@ function jsonMPC($fileName, $pretty = false) {
 		$data = json_encode($data);
 	}
 	return $data;
+}
+
+/**
+* parses an observation line and returns time parameters for queryNEODYS
+* @param $obs observation, as element of the array from readMPC 
+* @param $lastMinute should we include the last minute in the NEODYS request or not?
+*/
+function timeParameters($obs, $lastMinute = false) {
+	$JD = $obs["JD"];
+	$year = $obs["year"];
+	$month = $obs["month"];
+	$day = substr($obs["day"], 0, 2);
+	$hm = 24 * substr($obs["day"], 2, 6);
+	$hour = floor($hm);
+	$addMinutes = $lastMinute == true ? 1 : 0; //to include the last observation if true
+	$minute = floor(60 * ($hm - $hour)) + $addMinutes; 
+	$param = array("JD" => $JD, "year" => $year, "month" => $month, "day" => $day, "hour" => $hour, "minute" => $minute);
+	return($param);
+}
+
+function queryNEODYS($asteroid, $obscode, $startDate, $endDate) {
+	$baseSite = "http://newton.dm.unipi.it/neodys/index.php?pc=1.1.3.1";
 }
 
 
