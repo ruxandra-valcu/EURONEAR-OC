@@ -160,8 +160,13 @@ function readMPC($fileName) {
 /**
 * parses a MPC file (given by handle) into a JSON file containing just the observation data
 */
-function jsonMPC($fileName) {
-	$data = json_encode(readMPC($filename));
+function jsonMPC($fileName, $pretty = false) {
+	$data = readMPC($filename);
+	if ($pretty === true) {
+		$data = json_encode($data, JSON_PRETTY_PRINT);
+	} else {
+		$data = json_encode($data);
+	}
 	return $data;
 }
 
