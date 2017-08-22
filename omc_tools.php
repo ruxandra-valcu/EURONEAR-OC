@@ -65,7 +65,10 @@ function lettersToNumbers($letter) {
 		"x" => "59",
 		"y" => "60"
 	);
-	return $map[$letter];
+	if (array_key_exists($letter, $map)) {
+		return $map[$letter];
+	}
+	return $letter;
 }
 
 
@@ -88,7 +91,7 @@ function julianDay($year, $month, $day) {
 * parses a MPC file (given by handle) into a PHP array containing just the observation data
 */
 function readMPC($fileName) {
-	if ($file = fopen($fileName)) {
+	if ($file = fopen($fileName, "r")) {
 		// skip header
 		do {
 			$line = fgets($file, 1024);
@@ -107,16 +110,16 @@ function readMPC($fileName) {
 			$number = substr($line, 0, 5); //read asteroid number (if exists) and process
 			$number = substr_replace($number, lettersToNumbers(substr($number, 0, 1)) , 0, 1);
 			$tempDes = substr($line, 5, 7);
-			if (trim($tempdes) <> "") {
-				$nr1 = lettersToNumbers(substr($tempdes, 0, 1));
-				$nr2 = substr($tempdes, 1, 2);
-				$nr3 = substr($tempdes, 3, 1);
-				$nr4 = substr($tempdes, 6, 1);
-				$nr5 = lettersToNumbers(substr($tempdes, 4, 1));
+			if (trim($tempDes) <> "") {
+				$nr1 = lettersToNumbers(substr($tempDes, 0, 1));
+				$nr2 = substr($tempDes, 1, 2);
+				$nr3 = substr($tempDes, 3, 1);
+				$nr4 = substr($tempDes, 6, 1);
+				$nr5 = lettersToNumbers(substr($tempDes, 4, 1));
 				if ($nr5 == "0") {	
 					$nr5 = "";
 				}
-				$nr6 = substr($tempdes, 5, 1);
+				$nr6 = substr($tempDes, 5, 1);
 				if ($nr6 == "0" && $nr5 == "") {
 				} $nr6 == "";
 				$tempDes = $nr1 . $nr2 . $nr3 . $nr4 . $nr5 . $nr6;
@@ -139,14 +142,14 @@ function readMPC($fileName) {
 			if (!is_numeric($obs["year"]) || !is_numeric($obs["month"]) || !is_numeric($obs["day"]) ||
 					!is_numeric($obs["alhr"]) || !is_numeric($obs["almin"]) || !is_numeric($obs["alsec"]) ||
 					!is_numeric($obs["delgr"]) || !is_numeric($obs["delmin"]) || !is_numeric($obs["delsec"])) {
-				$notMPC = false;
+				$notMPC = true;
 			}
 			$obs["JD"] = julianDay($obs["year"], $obs["month"], $obs["day"]);
 			// add it to observation array
-			if ($notMPC === true) { 
+			if ($notMPC == false) { 
 				array_push($observations, $obs);
 			}
-		} while (!feof($file) && $notMPC === true && trim($line) != ""); // last line is empty
+		} while (!feof($file) && $notMPC == false && trim($line) != ""); // last line is empty
 
 		if ($notMPC === true) {
 			return "ERROR: File not in MPC format";
@@ -161,7 +164,7 @@ function readMPC($fileName) {
 * parses a MPC file (given by handle) into a JSON file containing just the observation data
 */
 function jsonMPC($fileName, $pretty = false) {
-	$data = readMPC($filename);
+	$data = readMPC($fileName);
 	if ($pretty === true) {
 		$data = json_encode($data, JSON_PRETTY_PRINT);
 	} else {
