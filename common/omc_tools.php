@@ -257,12 +257,41 @@ function queryEphShort($site, $asteroid, $obscode, $startJD, $endJD, $maxInterva
 	curl_close($ch);
 	$regex = '#===\n(.*?)</pre>#s';
 	preg_match($regex, $raw, $match);
-	//#TODO deal with not found
 	return count($match) < 2 ? "" : $match[1];
 }
 
-function queryEph($site, $asteroid, $obscode, $startJD, $endJD, $maxInterval = 3.0) {
-	//#TODO stop passing the site as parameter, figure it out from the asteroid
+/**
+* checks if an asteroid can be found on a certain site
+*/
+function checkIfOnSite($asteroid, $failString, $site, $queryPart = "index.php?pc=1.1.0&n=") {
+	$URL = siteMap($site) . $queryPart . $asteroid;
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $URL);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	$raw = curl_exec($ch);
+	curl_close($ch);
+	if (strpos($raw, $failString) !== false) { //we found the fail pattern
+		return false;
+	}
+	return true;
+}
+
+
+/**
+* checks if an asteroid is a NEA and returns the name of the site it can be found in.
+*/
+function checkIfNEA($asteroid) { 
+	if (checkIfOnSite($asteroid, "NEA not found", "neodys") == true) { return "neodys";
+	} else if (checkIfOnSite($asteroid, "Asteroid not found", "astdys") == true) { return "astdys";
+	} else { return "";
+	}
+}
+
+function queryEph($asteroid, $obscode, $startJD, $endJD, $maxInterval = 3.0) {
+	$site = checkIfNEA($asteroid);
+	if ($site == "") { //not found on any of the sites we're looking on
+		return "";
+	}
 	//create the query ranges for queryEphShort
 	if ($endJD - $startJD <= $maxInterval) {
 		$tr = array($startJD, $endJD);
@@ -273,7 +302,6 @@ function queryEph($site, $asteroid, $obscode, $startJD, $endJD, $maxInterval = 3
 	$timeRange = array_combine(array_slice($tr, 0, count($tr) - 1), array_slice($tr, 1, count($tr) - 1));
 	$raw =  "";
 	foreach	($timeRange as $start => $stop) {
-		//#TODO deal with not found
 		$raw .= queryEphShort($site, $asteroid, $obscode, $start, $stop, $maxInterval);
 	}
 	return($raw);
