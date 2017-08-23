@@ -1,6 +1,6 @@
 <?php
 
-//#TODO ask Ovidiu what's with this bit
+
 function lettersToNumbers($letter) {
 	$map = array(
 		"0" => "0", 
@@ -71,6 +71,20 @@ function lettersToNumbers($letter) {
 	return $letter;
 }
 
+/**
+*Site name to base query address mapping
+*/
+function siteMap($site) {
+	$map = array(
+		"neodys" => "http://newton.dm.unipi.it/neodys/",
+		"astdys" => "http://hamilton.dm.unipi.it/astdys/"
+	);
+	if (array_key_exists($site, $map)) {
+		return $map[$site];
+	}
+	return $site;
+}
+
 
 /**
 * calculates JD giving a gregorian calendar date ($day with dec coresp UT)
@@ -91,7 +105,10 @@ function julianDay($year, $month, $day) {
 * given a JD, returns the gregorian calendar date as an array of year, month, day, hour, minute
 *	ref: J. Meeus, Astronomical Algorithms
 */
-function gregorianDate($julianDay) {
+function gregorianDate($julianDay, $addMinute = false) {
+	if ($addMinute == true) { //for the end of an observation period we want a date 1 minute later than the actual date
+		$julianDay += 1 / 1440; 
+	}
 	$julianDay += 0.5;
 	$Z = floor($julianDay);
 	$F = $julianDay - floor($julianDay);
@@ -118,7 +135,7 @@ function gregorianDate($julianDay) {
 /**
 * parses a MPC file (given by handle) into a PHP array containing just the observation data
 */
-function readMPC($fileName) {
+function readMPC($fileName) { //#TODO delete the file after you're done, or bypass the whole file saving step altogether
 	if ($file = fopen($fileName, "r")) {
 		// skip header
 		do {
@@ -154,7 +171,7 @@ function readMPC($fileName) {
 			}
 			$obs["number"] = $number;
 			$obs["name"] = $tempDes;
-			$obs["NEODYS"] = trim($obs["number"]) != "" ? trim($obs["number"]) : trim($obs["name"]);
+			$obs["id"] = trim($obs["number"]) != "" ? trim($obs["number"]) : trim($obs["name"]);
 			$obs["year"] = trim(substr($line, 15, 4));
 			$obs["month"] = trim(substr($line, 20, 2));
 			$obs["day"] = trim(substr($line, 23, 8));
@@ -206,21 +223,60 @@ function jsonMPC($fileName, $pretty = false) {
 * @param $obs observation, as element of the array from readMPC 
 * @param $lastMinute should we include the last minute in the NEODYS request or not?
 */
-function timeParameters($obs, $lastMinute = false) {
+function timeParameters($obs, $addMinute = false) {
 	$JD = $obs["JD"];
 	$year = $obs["year"];
 	$month = $obs["month"];
 	$day = substr($obs["day"], 0, 2);
 	$hm = 24 * substr($obs["day"], 2, 6);
 	$hour = floor($hm);
-	$addMinutes = $lastMinute == true ? 1 : 0; //to include the last observation if true
+	$addMinutes = $addMinute == true ? 1 : 0; //to include the last observation if true
 	$minute = floor(60 * ($hm - $hour)) + $addMinutes; 
 	$param = array("JD" => $JD, "year" => $year, "month" => $month, "day" => $day, "hour" => $hour, "minute" => $minute);
 	return($param);
 }
 
-function queryNEODYS($asteroid, $obscode, $startDate, $endDate) {
-	$baseSite = "http://newton.dm.unipi.it/neodys/index.php?pc=1.1.3.1";
+/**
+* Queries the specified site for the ephemerid of a certain asteroid, from a certain observatory,
+* between two julian dates that must be at most $maxInterval in difference (NEODYS requirement)
+*/
+function queryEphShort($site, $asteroid, $obscode, $startJD, $endJD, $maxInterval = 3.0) {
+	if ($endJD - $startJD > $maxInterval) {
+		return "ERROR: query interval is greater than the 3 days allowed by NeoDYS\n";
+	}
+	$baseURL = "SITEindex.php?pc=1.1.3.1&n=ASTEROID&oc=OBSCODE&y0=Y0&m0=M0&d0=D0&h0=H0&mi0=MI0&y1=Y1&m1=M1&d1=D1&h1=H1&mi1=MI1&ti=1.0&tiu=minutes";
+	$startDate = gregorianDate($startJD);
+	$endDate = array_combine(array("year2", "month2", "day2", "hour2", "minute2"), gregorianDate($endJD, true));
+	$replace = array("site" => sitemap($site),"name" => $asteroid, "obs" => $obscode) + $startDate + $endDate;
+	$find = array("SITE", "ASTEROID", "OBSCODE", "Y0", "M0", "D0", "H0", "MI0", "Y1", "M1", "D1", "H1", "MI1");
+	$URL = str_replace($find, $replace, $baseURL);
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $URL);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	$raw = curl_exec($ch);
+	curl_close($ch);
+	$regex = '#===\n(.*?)</pre>#s';
+	preg_match($regex, $raw, $match);
+	//#TODO deal with not found
+	return count($match) < 2 ? "" : $match[1];
+}
+
+function queryEph($site, $asteroid, $obscode, $startJD, $endJD, $maxInterval = 3.0) {
+	//#TODO stop passing the site as parameter, figure it out from the asteroid
+	//create the query ranges for queryEphShort
+	if ($endJD - $startJD <= $maxInterval) {
+		$tr = array($startJD, $endJD);
+	} else {
+		$tr = range($startJD, $endJD, $maxInterval);
+		array_push($tr, $endJD);
+	}
+	$timeRange = array_combine(array_slice($tr, 0, count($tr) - 1), array_slice($tr, 1, count($tr) - 1));
+	$raw =  "";
+	foreach	($timeRange as $start => $stop) {
+		//#TODO deal with not found
+		$raw .= queryEphShort($site, $asteroid, $obscode, $start, $stop, $maxInterval);
+	}
+	return($raw);
 }
 
 
