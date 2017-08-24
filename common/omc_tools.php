@@ -287,6 +287,10 @@ function checkIfNEA($asteroid) {
 	}
 }
 
+/**
+* queries neodys/astdys for the ephemerid of an asteroid at a specific observation spot for a specific time range
+* returns php array
+*/
 function queryEph($asteroid, $obscode, $startJD, $endJD, $maxInterval = 3.0) {
 	$site = checkIfNEA($asteroid);
 	if ($site == "") { //not found on any of the sites we're looking on
@@ -304,8 +308,71 @@ function queryEph($asteroid, $obscode, $startJD, $endJD, $maxInterval = 3.0) {
 	foreach	($timeRange as $start => $stop) {
 		$raw .= queryEphShort($site, $asteroid, $obscode, $start, $stop, $maxInterval);
 	}
-	return($raw);
+	$raw = explode("\n", $raw);
+	$eph = array();
+	foreach($raw as $line) {
+		if(trim($line) != "") {
+			$obs = array(
+				"date" => trim(substr($line, 0, 12)),
+				"time" => trim(substr($line, 13, 6)),
+				"RA_h" => trim(substr($line, 22, 2)),
+				"RA_m" => trim(substr($line, 25, 2)),
+				"RA_s" => trim(substr($line, 28, 6)),
+				"DEC_d" => str_replace( array("+", " "), "", substr($line, 35, 4) ),
+				"DEC_m" => trim(substr($line, 40, 2)),
+				"DEC_s" => trim(substr($line, 43, 5)),
+				"Mag" => trim(substr($line, 49, 5)),
+				"Alt" => trim(substr($line, 55, 5)),
+				"Airmass" => trim(substr($line, 61, 8)),
+				"Sun elev." => trim(substr($line, 70, 6)),
+				"SolEl" => trim(substr($line, 77, 6)),
+				"LunEl" => trim(substr($line, 84, 6)),
+				"Phase" => trim(substr($line, 91, 6)),
+				"Glat" => trim(substr($line, 98, 6)),
+				"Glon" => trim(substr($line, 104, 6)),
+				"R" => trim(substr($line, 110, 8)),
+				"Delta" => trim(substr($line, 118, 7)),
+				"RA*cosDE" => trim(substr($line, 126, 9)),
+				"DEC" => trim(substr($line, 137, 9)),
+				"Err1" => trim(substr($line, 147, 8)),
+				"Err2" => trim(substr($line, 157, 8)),
+				"PA" => trim(substr($line, 166, 6))
+			);	
+			array_push($eph, $obs);
+		}
+	}
+	return($eph);
 }
 
+/**
+* helper function for chunkArray, given an array and a set of keys it returns a single key 
+* based on the values said keys have in the array
+*/
+function createKey($line, $keys) {
+	$finalKey = "";
+	foreach($keys as $key) {
+		$finalKey .= $key . "=" . $line[$key] . ";";
+	}
+	return($finalKey);
+}
+
+/**
+* given an array of arrays, all with the same keys (say, observation lines), and a list of keys to group by
+* groups them by unique key/value combinations, e.g. only observations of the same asteroid from the same observatory
+*/
+function chunkArray($arr, $keys) {
+	$groupedArray = array();
+	foreach($arr as $line) {
+		$groupedKey = createKey($line, $keys);
+		if (!isset($groupedArray[$groupedKey])) {
+			$groupedArray[$groupedKey] = array();
+		}
+		array_push($groupedArray[$groupedKey], $line);
+	}
+	return($groupedArray);
+}
+
+
+//#TODO given an array from readMPC with multiple asteroids/obscodes, slice it by unique asteroid/obscode combinations
 
 ?>
