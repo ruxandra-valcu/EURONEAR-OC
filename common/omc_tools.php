@@ -236,6 +236,8 @@ function timeParameters($obs, $addMinute = false) {
 	return($param);
 }
 
+
+
 /**
 * Queries the specified site for the ephemerid of a certain asteroid, from a certain observatory,
 * between two julian dates that must be at most $maxInterval in difference (NEODYS requirement)
@@ -283,7 +285,7 @@ function checkIfOnSite($asteroid, $failString, $site, $queryPart = "index.php?pc
 function checkIfNEA($asteroid) { 
 	if (checkIfOnSite($asteroid, "NEA not found", "neodys") == true) { return "neodys";
 	} else if (checkIfOnSite($asteroid, "Asteroid not found", "astdys") == true) { return "astdys";
-	} else { return "";
+	} else { return false;
 	}
 }
 
@@ -291,10 +293,13 @@ function checkIfNEA($asteroid) {
 * queries neodys/astdys for the ephemerid of an asteroid at a specific observation spot for a specific time range
 * returns php array
 */
-function queryEph($asteroid, $obscode, $startJD, $endJD, $maxInterval = 3.0) {
+function queryEph($asteroid, $obscode, $timerange, $maxInterval = 3.0) {
+	$startJD = $timerange["start"];
+	$endJD = $timerange["stop"]; //TODO replace this later with more complex obs. intervals
+
 	$site = checkIfNEA($asteroid);
-	if ($site == "") { //not found on any of the sites we're looking on
-		return "";
+	if ($site == false) { //not found on any of the sites we're looking on
+		return false;
 	}
 	//create the query ranges for queryEphShort
 	if ($endJD - $startJD <= $maxInterval) {
@@ -353,7 +358,7 @@ function createKey($line, $keys) {
 	foreach($keys as $key) {
 		$finalKey .= $key . "=" . $line[$key] . ";";
 	}
-	return($finalKey);
+	return $finalKey;
 }
 
 /**
@@ -361,6 +366,9 @@ function createKey($line, $keys) {
 * groups them by unique key/value combinations, e.g. only observations of the same asteroid from the same observatory
 */
 function chunkArray($arr, $keys) {
+	if (sameKeys($arr) == false) {
+		return(false);
+	}
 	$groupedArray = array();
 	foreach($arr as $line) {
 		$groupedKey = createKey($line, $keys);
@@ -369,10 +377,83 @@ function chunkArray($arr, $keys) {
 		}
 		array_push($groupedArray[$groupedKey], $line);
 	}
-	return($groupedArray);
+	return $groupedArray;
 }
 
+/**
+* given an array of arrays, checks if all of them have the same keys
+* ugly sanity check for php not actually having decent data structures
+*/ 
+function sameKeys($arr) {
+	$first = reset($arr);
+	$keys = array_keys($first);
+	foreach($arr as $line) {
+		if ($keys != array_keys($line)) {
+			return(false);
+		}
+	}
+	return true;
+}
 
-//#TODO given an array from readMPC with multiple asteroids/obscodes, slice it by unique asteroid/obscode combinations
+/**
+* given an array of arrays, all with the same keys, and a keyname
+*	returns all values of that key in the subarrays
+*/
+function extractColumn($arr, $key) {
+	if (sameKeys($arr) == false) {
+		return(false);
+	}
+	$column = array();
+	foreach($arr as $k => $v) {
+		$column[$k] = $v[$key];
+	}
+	return $column;
+}
+
+/**
+*	for now, returns max and min JD found in the array of observations
+*/
+function getObservationInterval($obs) {
+	$jd = extractColumn($obs, "JD");
+	$interval = array("start" => min($jd), "stop" => max($jd));
+	return($interval);
+}
+
+/**
+* TODO write doc
+*/
+function omc($fileName) {
+	$rawObs = readMPC($fileName);
+	if(is_string($rawObs)) { //it's an error message, should return an array
+		return($rawObs);
+	}
+	$rawObs = chunkArray($rawObs, array("id", "obscode"));
+	if ($rawObs == false) {
+		return("Error: parsed file incorrectly");
+	}
+	$enrichedObs = array();
+	foreach($rawObs as $key => $obs) {
+		$asteroid = reset($obs)["id"];
+		$obscode = reset($obs)["obscode"];
+		$timerange = getObservationInterval($obs);
+		$eph = queryEph($asteroid, $obscode, $timerange);
+		$enrichedObs[$key] = addOC($obs, $eph);
+	}
+	return($enrichedObs);
+}
+
+//TODO make it do something actually useful
+function addOC($obs, $eph) {
+	//calculate errors, add them in
+	if ($eph == false) {
+		//we didn't find the asteroid, treat it as such
+		return $obs; //TODO replace
+	}
+	$oc = array_merge($obs, $eph); //for testing purposes, replace with something actually useful later on
+	return $oc;
+}
+
+//TODO add functions actually calculating the ephemerid
+
 
 ?>
