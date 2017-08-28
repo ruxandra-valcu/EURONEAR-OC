@@ -447,7 +447,7 @@ function addOC($obs, $eph) {
 	//calculate errors, add them in
 	if ($eph == false) {
 		//we didn't find the asteroid, treat it as such
-		return $obs; //TODO replace
+		return $obs; //TODO replace - add an error message maybe
 	}
 	$oc = array_merge($obs, $eph); //for testing purposes, replace with something actually useful later on
 	return $oc;
