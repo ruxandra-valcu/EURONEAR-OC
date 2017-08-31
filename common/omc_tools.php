@@ -1,5 +1,31 @@
 <?php
 
+/**
+* Given a function and a list of arguments for that function
+* returns the JSON representation of that function's return value
+* $pretty = false => smaller JSON, $pretty = true => human-readable JSON
+*/
+function jsonify($function, $arguments, $pretty = FALSE) {
+	$result = call_user_func_array($function, $arguments);
+	if ($pretty == TRUE) {
+		$result = json_encode($result, JSON_PRETTY_PRINT);
+ 	} else {
+		$result = json_encode($result);
+	}
+	return $result;	
+}
+
+/**
+* given a file(by handle) and a parsing function, returns the parsed file 
+*/
+function parseFile($fileName, $parseFunction) {
+	$contents = file_get_contents($fileName);
+	if ($contents == FALSE) {
+		return "ERROR: File not found";
+	}
+	return call_user_func_array($parseFunction, array($contents));
+}
+
 
 function lettersToNumbers($letter) {
 	$map = array(
@@ -132,95 +158,74 @@ function gregorianDate($julianDay, $addMinute = false) {
 	return $date;
 }
 
+
 /**
-* parses a MPC file (given by handle) into a PHP array containing just the observation data
+* parses the contents of a MPC file into a PHP array containing just the observation data
 */
-function readMPC($fileName) { //#TODO delete the file after you're done, or bypass the whole file saving step altogether
-	if ($file = fopen($fileName, "r")) {
-		// skip header
-		do {
-			$line = fgets($file, 1024);
-		} while (!feof($file) && trim($line) != ""); // there's an empty line between header and data lines
+function parseMPC($file) { 
+	$contents = explode("\n", $file);
+	$contents = array_reverse($contents); //to avoid performance penalty for array_shift
+	do {
+		$line = array_pop($contents);
+	} while (trim($line) != "" && !empty($contents));
+	$contents = array_reverse($contents);
 
-		// read data lines
-		$observations = array();
-		$notMPC = false;
-		// parse lines into arrays
-		do {
-			$line = fgets($file, 1024);
-			if (trim($line) === "") {
+	$observations = array();
+	$notMPC = false;
+	foreach($contents as $line) {
+		if (trim($line) === "") {
 				continue; //empty line, pointless to go through the parsing
+		}
+		$obs = array();
+		$number = substr($line, 0, 5); //read asteroid number (if exists) and process
+		$number = substr_replace($number, lettersToNumbers(substr($number, 0, 1)) , 0, 1);
+		$tempDes = substr($line, 5, 7);
+		if (trim($tempDes) <> "") {
+			$nr1 = lettersToNumbers(substr($tempDes, 0, 1));
+			$nr2 = substr($tempDes, 1, 2);
+			$nr3 = substr($tempDes, 3, 1);
+			$nr4 = substr($tempDes, 6, 1);
+			$nr5 = lettersToNumbers(substr($tempDes, 4, 1));
+			if ($nr5 == "0") {	
+				$nr5 = "";
 			}
-			$obs = array();
-			$number = substr($line, 0, 5); //read asteroid number (if exists) and process
-			$number = substr_replace($number, lettersToNumbers(substr($number, 0, 1)) , 0, 1);
-			$tempDes = substr($line, 5, 7);
-			if (trim($tempDes) <> "") {
-				$nr1 = lettersToNumbers(substr($tempDes, 0, 1));
-				$nr2 = substr($tempDes, 1, 2);
-				$nr3 = substr($tempDes, 3, 1);
-				$nr4 = substr($tempDes, 6, 1);
-				$nr5 = lettersToNumbers(substr($tempDes, 4, 1));
-				if ($nr5 == "0") {	
-					$nr5 = "";
-				}
-				$nr6 = substr($tempDes, 5, 1);
-				if ($nr6 == "0" && $nr5 == "") {
-				} $nr6 == "";
-				$tempDes = $nr1 . $nr2 . $nr3 . $nr4 . $nr5 . $nr6;
-			}
-			$obs["number"] = $number;
-			$obs["name"] = $tempDes;
-			$obs["id"] = trim($obs["number"]) != "" ? trim($obs["number"]) : trim($obs["name"]);
-			$obs["year"] = trim(substr($line, 15, 4));
-			$obs["month"] = trim(substr($line, 20, 2));
-			$obs["day"] = trim(substr($line, 23, 8));
-			$obs["alhr"] = trim(substr($line, 32, 2));
-			$obs["almin"] = trim(substr($line, 35, 2));
-			$obs["alsec"] = trim(substr($line, 38, 5));
-			$obs["delgr"] = trim(substr($line, 44, 3));
-			$obs["delmin"] = trim(substr($line, 48, 2));
-			$obs["delsec"] = trim(substr($line, 51, 4));
-			$obs["obscode"] = trim(substr($line, 77, 3));
+			$nr6 = substr($tempDes, 5, 1);
+			if ($nr6 == "0" && $nr5 == "") {
+				$nr6 == "";
+			} 
+			$tempDes = $nr1 . $nr2 . $nr3 . $nr4 . $nr5 . $nr6;
+		}
+		$obs["number"] = $number;
+		$obs["name"] = $tempDes;
+		$obs["id"] = trim($obs["number"]) != "" ? trim($obs["number"]) : trim($obs["name"]);
+		$obs["year"] = trim(substr($line, 15, 4));
+		$obs["month"] = trim(substr($line, 20, 2));
+		$obs["day"] = trim(substr($line, 23, 8));
+		$obs["alhr"] = trim(substr($line, 32, 2));
+		$obs["almin"] = trim(substr($line, 35, 2));
+		$obs["alsec"] = trim(substr($line, 38, 5));
+		$obs["delgr"] = trim(substr($line, 44, 3));
+		$obs["delmin"] = trim(substr($line, 48, 2));
+		$obs["delsec"] = trim(substr($line, 51, 4));
+		$obs["obscode"] = trim(substr($line, 77, 3));
 			
-			// verify if in correct format - if not, stop reading
-			if (!is_numeric($obs["year"]) || !is_numeric($obs["month"]) || !is_numeric($obs["day"]) ||
-					!is_numeric($obs["alhr"]) || !is_numeric($obs["almin"]) || !is_numeric($obs["alsec"]) ||
-					!is_numeric($obs["delgr"]) || !is_numeric($obs["delmin"]) || !is_numeric($obs["delsec"])) {
-				$notMPC = true;
-			}
-			$obs["JD"] = julianDay($obs["year"], $obs["month"], $obs["day"]);
-			// add it to observation array
-			if ($notMPC == false) { 
-				array_push($observations, $obs);
-			}
-		} while (!feof($file) && $notMPC == false); // last line is empty
-
-		if ($notMPC === true) {
+		// verify if in correct format - if not, stop reading
+		if (!is_numeric($obs["year"]) || !is_numeric($obs["month"]) || !is_numeric($obs["day"]) ||
+				!is_numeric($obs["alhr"]) || !is_numeric($obs["almin"]) || !is_numeric($obs["alsec"]) ||
+				!is_numeric($obs["delgr"]) || !is_numeric($obs["delmin"]) || !is_numeric($obs["delsec"])) {
 			return "ERROR: File not in MPC format";
 		}
-		return $observations;
-	} else {
-		return "ERROR: File not found";
-	}	
+		$obs["JD"] = julianDay($obs["year"], $obs["month"], $obs["day"]);
+		// add it to observation array
+		array_push($observations, $obs);
+	}
+	return $observations;
 }
 
-/**
-* parses a MPC file (given by handle) into a JSON file containing just the observation data
-*/
-function jsonMPC($fileName, $pretty = false) {
-	$data = readMPC($fileName);
-	if ($pretty === true) {
-		$data = json_encode($data, JSON_PRETTY_PRINT);
-	} else {
-		$data = json_encode($data);
-	}
-	return $data;
-}
 
 /**
 * parses an observation line and returns time parameters for queryNEODYS
-* @param $obs observation, as element of the array from readMPC 
+* @param $obs observation, as element of the array from parseMPC 
 * @param $lastMinute should we include the last minute in the NEODYS request or not?
 */
 function timeParameters($obs, $addMinute = false) {
@@ -423,7 +428,7 @@ function getObservationInterval($obs) {
 * TODO write doc
 */
 function omc($fileName) {
-	$rawObs = readMPC($fileName);
+	$rawObs = parseFile($fileName, "parseMPC");
 	if(is_string($rawObs)) { //it's an error message, should return an array
 		return($rawObs);
 	}
