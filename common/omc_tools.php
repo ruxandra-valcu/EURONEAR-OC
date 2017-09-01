@@ -12,8 +12,86 @@ function jsonify($function, $arguments, $pretty = FALSE) {
  	} else {
 		$result = json_encode($result);
 	}
-	return $result;	
+	return $result . "\n";	
 }
+
+/**
+* Given a function, a list of argument for that function and an optional 
+* array of field padding lengths (for outputs like MPC where position in line matters)
+*	returns the string representation of that function's return value 
+*/
+function textify($function, $arguments, $spaces = false) {
+	$result = call_user_func_array($function, $arguments);
+	return formatText($result, $spaces);
+}
+
+function formatText($arr, $spaces = false) {
+	if (!is_array($arr) ) {
+		return strval($arr);
+	}
+	//set up the spacing array, even if it doesn't exist
+	$first = reset($arr);
+	$spaceLength = array();
+	$spaces = is_array($spaces) ? array_reverse($spaces) : $spaces;
+	foreach($first as $key => $value) {
+		if (is_array($spaces)) {
+			$spaceLength[$key] = array_pop($spaces);
+		} else { //no space array given, add 1 to length of longest bit of text in column;
+			$column = array_column($arr, $key);
+			$maxLength = 0;
+			foreach ($column as $colValue) {
+				$length = strlen(strval($colValue)) + 1;
+				$maxLength = $maxLength >= $length ? $maxLength : $length;
+			}
+			$spaceLength[$key] = $maxLength;
+		}
+	}
+	$txt = "";
+	foreach ($arr as $line) {
+		$txtLine = "";
+		foreach($line as $key => $value) {
+			$txtLine .= str_pad($value, $spaceLength[$key], " ");
+		}
+		$txtLine .= "\n";
+		$txt .= $txtLine;
+	}
+	return $txt;
+}
+
+/**
+* given an array of arrays, all with the same keys (say, observation lines), and a list of keys to group by
+* groups them by unique key/value combinations, e.g. only observations of the same asteroid from the same observatory
+*/
+function chunkArray($arr, $keys) {
+	if (sameKeys($arr) == false) {
+		return(false);
+	}
+	$groupedArray = array();
+	foreach($arr as $line) {
+		$groupedKey = createKey($line, $keys);
+		if (!isset($groupedArray[$groupedKey])) {
+			$groupedArray[$groupedKey] = array();
+		}
+		array_push($groupedArray[$groupedKey], $line);
+	}
+	return $groupedArray;
+}
+
+/**
+* given an array of arrays, checks if all of them have the same keys
+* ugly sanity check for php not actually having decent data structures
+*/ 
+function sameKeys($arr) {
+	$first = reset($arr);
+	$keys = array_keys($first);
+	foreach($arr as $line) {
+		if ($keys != array_keys($line)) {
+			return(false);
+		}
+	}
+	return true;
+}
+
 
 /**
 * given a file(by handle) and a parsing function, returns the parsed file 
@@ -366,60 +444,13 @@ function createKey($line, $keys) {
 	return $finalKey;
 }
 
-/**
-* given an array of arrays, all with the same keys (say, observation lines), and a list of keys to group by
-* groups them by unique key/value combinations, e.g. only observations of the same asteroid from the same observatory
-*/
-function chunkArray($arr, $keys) {
-	if (sameKeys($arr) == false) {
-		return(false);
-	}
-	$groupedArray = array();
-	foreach($arr as $line) {
-		$groupedKey = createKey($line, $keys);
-		if (!isset($groupedArray[$groupedKey])) {
-			$groupedArray[$groupedKey] = array();
-		}
-		array_push($groupedArray[$groupedKey], $line);
-	}
-	return $groupedArray;
-}
 
-/**
-* given an array of arrays, checks if all of them have the same keys
-* ugly sanity check for php not actually having decent data structures
-*/ 
-function sameKeys($arr) {
-	$first = reset($arr);
-	$keys = array_keys($first);
-	foreach($arr as $line) {
-		if ($keys != array_keys($line)) {
-			return(false);
-		}
-	}
-	return true;
-}
-
-/**
-* given an array of arrays, all with the same keys, and a keyname
-*	returns all values of that key in the subarrays
-*/
-function extractColumn($arr, $key) {
-	if (sameKeys($arr) == false) {
-		return(false);
-	}
-	$column = array();
-	foreach($arr as $k => $v) {
-		$column[$k] = $v[$key];
-	}
-	return $column;
-}
 
 /**
 *	for now, returns max and min JD found in the array of observations
 */
 function getObservationInterval($obs) {
-	$jd = extractColumn($obs, "JD");
+	$jd = array_column($obs, "JD");
 	$interval = array("start" => min($jd), "stop" => max($jd));
 	return($interval);
 }
@@ -444,17 +475,32 @@ function omc($fileName) {
 		$eph = queryEph($asteroid, $obscode, $timerange);
 		$enrichedObs[$key] = addOC($obs, $eph);
 	}
-	return($enrichedObs);
+	//flatten enrichedObs from array of asteroid arrays containing observations to array of observations
+	$flatObs = array();
+	$flatKey = 0; //we're doing this by hand because I couldn't find an array_merge variant that will add all values regardless of keys
+	foreach($enrichedObs as $ast) {
+		foreach($ast as $obs) {
+			$flatObs[$flatKey] = $obs;
+			$flatKey++;
+		}
+	}
+	return($flatObs);
 }
 
 //TODO make it do something actually useful
 function addOC($obs, $eph) {
-	//calculate errors, add them in
 	if ($eph == false) {
 		//we didn't find the asteroid, treat it as such
-		return $obs; //TODO replace - add an error message maybe
+		$ephemerid = "Not found";
 	}
-	$oc = array_merge($obs, $eph); //for testing purposes, replace with something actually useful later on
+	$ephemerid = "Found " . count($eph) . " elements";
+	$oc = array();
+	//for testing purposes, replace with something actually useful later on
+	foreach($obs as $obsLine) {
+		$newLine = $obsLine;
+		array_push($newLine, $ephemerid);
+		array_push($oc, $newLine);
+	} 
 	return $oc;
 }
 
