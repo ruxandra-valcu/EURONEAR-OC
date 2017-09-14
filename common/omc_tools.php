@@ -31,6 +31,10 @@ function formatText($arr, $spaces = false) {
 	}
 	//set up the spacing array, even if it doesn't exist
 	$first = reset($arr);
+	if (!is_array($first)) { //single observation line
+		$arr = array("0" => $arr);
+		$first = reset($arr);
+	}
 	$spaceLength = array();
 	$spaces = is_array($spaces) ? array_reverse($spaces) : $spaces;
 	foreach($first as $key => $value) {
@@ -194,7 +198,7 @@ function siteMap($site) {
 * calculates JD giving a gregorian calendar date ($day with dec coresp UT)
 * ref: J. Meeus, Astronomical Algorithms
 */
-function julianDay($year, $month, $day) {
+function julianDay($year, $month, $day, $hour = 0) {
 	if ($month <= 2) {
 		$year = $year + 1;
 		$month = $month + 12;
@@ -203,6 +207,14 @@ function julianDay($year, $month, $day) {
 	$b = 2 - $a + floor($a / 4);
 	$JD = floor(365.25 * ($year + 4716)) + floor(30.6001 * ($month + 1)) + $day + $b - 1524.5;
   return $JD;
+}
+
+function julianDateFormat($date, $time, $format = "j M Y") {
+	$parsedDate = date_create_from_format($format, $date);
+	$year = date_format($parsedDate	, 'Y');
+	$month = date_format($parsedDate, 'n');
+	$day = date_format($parsedDate, 'j');
+	return julianDay($year, $month, $day, $time);
 }
 
 /**
@@ -234,6 +246,15 @@ function gregorianDate($julianDay, $addMinute = false) {
 	$minute = floor(60 * ($hm - $hour)); 
 	$date = array("year" => $year, "month" => $month, "day" => $day, "hour" => $hour, "minute" => $minute);
 	return $date;
+}
+
+function calcDMS($degree, $minute, $second, $sign = "+") {
+	if ($sign == "-") {
+		$degree = - $degree;
+		$minute = - $minute;
+		$second = - $second;
+	}
+	return $degree + $minute / 60 + $second / 3600;
 }
 
 
@@ -279,10 +300,11 @@ function parseMPC($file) {
 		$obs["year"] = trim(substr($line, 15, 4));
 		$obs["month"] = trim(substr($line, 20, 2));
 		$obs["day"] = trim(substr($line, 23, 8));
-		$obs["alhr"] = trim(substr($line, 32, 2));
-		$obs["almin"] = trim(substr($line, 35, 2));
+		$obs["alhr"] = trim(substr($line, 32, 2)); //right ascension
+		$obs["almin"] = trim(substr($line, 35, 2)); 
 		$obs["alsec"] = trim(substr($line, 38, 5));
-		$obs["delgr"] = trim(substr($line, 44, 3));
+		$obs["delsign"] = trim(substr($line, 44, 1));
+		$obs["delgr"] = trim(substr($line, 45, 2)); //declination
 		$obs["delmin"] = trim(substr($line, 48, 2));
 		$obs["delsec"] = trim(substr($line, 51, 4));
 		$obs["obscode"] = trim(substr($line, 77, 3));
@@ -400,13 +422,14 @@ function queryEph($asteroid, $obscode, $timerange, $maxInterval = 3.0) {
 	$eph = array();
 	foreach($raw as $line) {
 		if(trim($line) != "") {
-			$obs = array(
+			$point = array(
 				"date" => trim(substr($line, 0, 12)),
 				"time" => trim(substr($line, 13, 6)),
 				"RA_h" => trim(substr($line, 22, 2)),
 				"RA_m" => trim(substr($line, 25, 2)),
 				"RA_s" => trim(substr($line, 28, 6)),
-				"DEC_d" => str_replace( array("+", " "), "", substr($line, 35, 4) ),
+				"DEC_sign" => trim(substr($line, 35, 2)),
+				"DEC_d" => trim(substr($line, 37, 2)),
 				"DEC_m" => trim(substr($line, 40, 2)),
 				"DEC_s" => trim(substr($line, 43, 5)),
 				"Mag" => trim(substr($line, 49, 5)),
@@ -426,7 +449,8 @@ function queryEph($asteroid, $obscode, $timerange, $maxInterval = 3.0) {
 				"Err2" => trim(substr($line, 157, 8)),
 				"PA" => trim(substr($line, 166, 6))
 			);	
-			array_push($eph, $obs);
+			$point["JD"] = julianDateFormat($point["date"], $point["time"]);
+			array_push($eph, $point);
 		}
 	}
 	return($eph);
@@ -489,20 +513,57 @@ function omc($fileName) {
 
 //TODO make it do something actually useful
 function addOC($obs, $eph) {
+	foreach($obs as $key => $obsLine) { //adding numeric RA/dec values
+		$obsLine["al"] = calcDMS($obsLine["alhr"], $obsLine["almin"], $obsLine["alsec"]);
+		$obsLine["del"] = calcDMS($obsLine["delgr"], $obsLine["delmin"], $obsLine["delsec"], $obsLine["delsign"]);
+		$obs[$key] = $obsLine;
+	}
+	$addVals = array();
 	if ($eph == false) {
 		//we didn't find the asteroid, treat it as such
-		$ephemerid = "Not found";
+		$addVals["found"] = "Not found";
 	}
-	$ephemerid = "Found " . count($eph) . " elements";
+	foreach($eph as $key => $ephLine) { //adding numeric RA/dec values
+		$ephLine["al"] = calcDMS($ephLine["RA_h"], $ephLine["RA_m"], $ephLine["RA_s"]);
+		$ephLine["del"] = calcDMS($ephLine["DEC_d"], $ephLine["DEC_m"], $ephLine["DEC_s"], $ephLine["DEC_sign"]);
+		$eph[$key] = $ephLine;
+	}
+	$addVals["found"] = "Found    " . count($eph) . " elements";
 	$oc = array();
 	//for testing purposes, replace with something actually useful later on
+	$test = array();
 	foreach($obs as $obsLine) {
 		$newLine = $obsLine;
-		array_push($newLine, $ephemerid);
+		array_merge($newLine, $addVals);
 		array_push($oc, $newLine);
+		$test = $obsLine;
 	} 
+	print_r(formatText($test) . "\n");
+	$closest = getClosest($test, $eph, "JD", 3);
+	print_r(formatText($closest) . "\n");
 	return $oc;
 }
+
+
+/**
+* given an observation line, a number of possible values, a column to compare and a number of values to return
+* it returns the $nr closest values
+* e.g. the 2 ephemerid points closest in time to an observation
+*/
+function getClosest($obs, $possible, $column, $nr) {
+	foreach($possible as $key => $value) {
+		$value["valuedifference"] = abs($obs[$column] - $value[$column]);
+		$possible[$key] = $value;
+	}
+	usort($possible, function($a, $b) {
+		$diff = $a["valuedifference"] - $b["valuedifference"];
+		return ($diff > 0) - ($diff < 0); //to avoid php automatically casting to integer - we want any difference to show
+	});
+	$closest = array_slice($possible, 0, $nr);
+	return $closest;
+}
+
+
 
 //TODO add functions actually calculating the ephemerid
 
