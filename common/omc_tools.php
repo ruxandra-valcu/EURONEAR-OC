@@ -1,5 +1,7 @@
 <?php
 
+//#1 code helpers, formatters etc.
+
 /**
 * Given a function and a list of arguments for that function
 * returns the JSON representation of that function's return value
@@ -82,6 +84,19 @@ function chunkArray($arr, $keys) {
 }
 
 /**
+* helper function for chunkArray, given an array and a set of keys it returns a single key 
+* based on the values said keys have in the array
+*/
+function createKey($line, $keys) {
+	$finalKey = "";
+	foreach($keys as $key) {
+		$finalKey .= $key . "=" . $line[$key] . ";";
+	}
+	return $finalKey;
+}
+
+
+/**
 * given an array of arrays, checks if all of them have the same keys
 * ugly sanity check for php not actually having decent data structures
 */ 
@@ -107,6 +122,8 @@ function parseFile($fileName, $parseFunction) {
 	}
 	return call_user_func_array($parseFunction, array($contents));
 }
+
+
 
 
 function lettersToNumbers($letter) {
@@ -179,6 +196,11 @@ function lettersToNumbers($letter) {
 	return $letter;
 }
 
+//end #1
+
+
+//#2 astronomical calculations and/or queries
+
 /**
 *Site name to base query address mapping
 */
@@ -197,6 +219,7 @@ function siteMap($site) {
 /**
 * calculates JD giving a gregorian calendar date ($day with dec coresp UT)
 * ref: J. Meeus, Astronomical Algorithms
+* hour must be between 0 and 1, otherwise it'll change the day
 */
 function julianDay($year, $month, $day, $hour = 0) {
 	if ($month <= 2) {
@@ -205,7 +228,7 @@ function julianDay($year, $month, $day, $hour = 0) {
 	}
 	$a = floor($year / 100);
 	$b = 2 - $a + floor($a / 4);
-	$JD = floor(365.25 * ($year + 4716)) + floor(30.6001 * ($month + 1)) + $day + $b - 1524.5;
+	$JD = floor(365.25 * ($year + 4716)) + floor(30.6001 * ($month + 1)) + $day + $b - 1524.5 + $hour;
   return $JD;
 }
 
@@ -248,6 +271,9 @@ function gregorianDate($julianDay, $addMinute = false) {
 	return $date;
 }
 
+/**
+* TODO doc
+*/
 function calcDMS($degree, $minute, $second, $sign = "+") {
 	if ($sign == "-") {
 		$degree = - $degree;
@@ -257,7 +283,49 @@ function calcDMS($degree, $minute, $second, $sign = "+") {
 	return $degree + $minute / 60 + $second / 3600;
 }
 
+/**
+* TODO doc
+*/
+function linearInterpolate($y, $x1, $y1, $x2, $y2) {
+	$x = $x1 + (($y - $y1) * ($y2 - $y1) / ($x2 - $x1));
+	return $x;
+}
 
+/**
+* TODO remove this, replace with regular interpolation that adds 360 degrees to any values more than 1 degree in difference
+*/
+function linearTrigInterpolate($y, $x1, $y1, $x2, $y2) {
+	$ang1 = deg2rad($x1);
+	$ang2 = deg2rad($x2);
+	print_r($y . " " . $y1 . " " . $y2 . "\n");
+	print_r($x1 . " " . $x2 . " ".  $ang1 . " " . $ang2 ."\n");
+	print_r(sin($ang1) . " " .sin($ang2)  . " " . cos($ang1)  . " " . cos($ang2)."\n");
+	$sin = linearInterpolate($y, sin($ang1), $y1, sin($ang2), $y2);
+	$cos = linearInterpolate($y, cos($ang1), $y1, cos($ang2), $y2);
+	$abs_sin = abs($sin);
+	$abs_cos = abs($cos);
+	print_r($sin . " " . $abs_sin . " " . $cos . " " . $abs_cos . "\n\n");
+	$x = rad2deg(asin($abs_sin));
+	//TODO: fix, it's not working
+	if($sin == $abs_sin) {
+		if($cos == $abs_cos) { //quarter 1
+		} else { //quarter 2
+			$x = 180 - $x;
+		}
+ 	} else {
+		if($cos == $abs_cos) { //quarter 4
+			$x = 360 - $x;
+		} else { //quarter 3
+			$x = 180 + $x;
+		}
+	} 
+	return $x;
+}
+
+//end #2
+
+
+//3 omc-related stuff
 /**
 * parses the contents of a MPC file into a PHP array containing just the observation data
 */
@@ -449,24 +517,13 @@ function queryEph($asteroid, $obscode, $timerange, $maxInterval = 3.0) {
 				"Err2" => trim(substr($line, 157, 8)),
 				"PA" => trim(substr($line, 166, 6))
 			);	
-			$point["JD"] = julianDateFormat($point["date"], $point["time"]);
+			$point["JD"] = julianDateFormat($point["date"], $point["time"] / 24);
 			array_push($eph, $point);
 		}
 	}
 	return($eph);
 }
 
-/**
-* helper function for chunkArray, given an array and a set of keys it returns a single key 
-* based on the values said keys have in the array
-*/
-function createKey($line, $keys) {
-	$finalKey = "";
-	foreach($keys as $key) {
-		$finalKey .= $key . "=" . $line[$key] . ";";
-	}
-	return $finalKey;
-}
 
 
 
@@ -513,8 +570,10 @@ function omc($fileName) {
 
 //TODO make it do something actually useful
 function addOC($obs, $eph) {
+	print_r(formatText($obs)); #should be 4 in test
+	print_r(formatText($eph)); #should be 31 in test
 	foreach($obs as $key => $obsLine) { //adding numeric RA/dec values
-		$obsLine["al"] = calcDMS($obsLine["alhr"], $obsLine["almin"], $obsLine["alsec"]);
+		$obsLine["al"] = calcDMS($obsLine["alhr"], $obsLine["almin"], $obsLine["alsec"]) * 15;
 		$obsLine["del"] = calcDMS($obsLine["delgr"], $obsLine["delmin"], $obsLine["delsec"], $obsLine["delsign"]);
 		$obs[$key] = $obsLine;
 	}
@@ -522,25 +581,48 @@ function addOC($obs, $eph) {
 	if ($eph == false) {
 		//we didn't find the asteroid, treat it as such
 		$addVals["found"] = "Not found";
+		
 	}
 	foreach($eph as $key => $ephLine) { //adding numeric RA/dec values
-		$ephLine["al"] = calcDMS($ephLine["RA_h"], $ephLine["RA_m"], $ephLine["RA_s"]);
+		$ephLine["al"] = calcDMS($ephLine["RA_h"], $ephLine["RA_m"], $ephLine["RA_s"]) * 15;
 		$ephLine["del"] = calcDMS($ephLine["DEC_d"], $ephLine["DEC_m"], $ephLine["DEC_s"], $ephLine["DEC_sign"]);
 		$eph[$key] = $ephLine;
 	}
-	$addVals["found"] = "Found    " . count($eph) . " elements";
+	$addVals["found"] = "Found " . count($eph) . " elements";
 	$oc = array();
 	//for testing purposes, replace with something actually useful later on
 	$test = array();
 	foreach($obs as $obsLine) {
 		$newLine = $obsLine;
-		array_merge($newLine, $addVals);
+		$newLine = array_merge($newLine, $addVals);
+		if ($newLine["found"] !== "Not found") {
+		//TODO interpolation
+			$closest = getClosest($newLine, $eph, "JD", 2);
+			$est_al_trig = linearTrigInterpolate($newLine["JD"], $closest[0]["al"], $closest[0]["JD"], $closest[1]["al"], $closest[1]["JD"]);
+			$newLine["est_al_trig"] = $est_al_trig;
+			$est_al = linearInterpolate($newLine["JD"], $closest[0]["al"], $closest[0]["JD"], $closest[1]["al"], $closest[1]["JD"]);
+			$newLine["est_al"] = $est_al;
+			$est_del = linearInterpolate($newLine["JD"], $closest[0]["del"], $closest[0]["JD"], $closest[1]["del"], $closest[1]["JD"]);
+			$newLine["est_del"] = $est_del;
+			//TODO check if you missed anything with ra calculation, if no, do interpolation based on tan/ctan
+		}
 		array_push($oc, $newLine);
-		$test = $obsLine;
+		$test = $obsLine; //remove after interpolation gets added above this
 	} 
+
+	/*
+	print_r("Eph\n");
+	print_r(formatText($eph) ."\n");
+	print_r("Test\n");
 	print_r(formatText($test) . "\n");
-	$closest = getClosest($test, $eph, "JD", 3);
+	print_r($test);
+	print_r("\n");
+	$closest = getClosest($test, $eph, "JD", 2); //TODO move to foreach part, add interpolation
+	print_r("Newline\n");
+	print_r($closest);
+	print_r("\n");
 	print_r(formatText($closest) . "\n");
+	print_r("Yay\n");*/
 	return $oc;
 }
 
