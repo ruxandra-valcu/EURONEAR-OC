@@ -17,29 +17,37 @@ function jsonify($function, $arguments, $pretty = FALSE) {
 	return $result . "\n";	
 }
 
+
 /**
 * Given a function, a list of argument for that function and an optional 
 * array of field padding lengths (for outputs like MPC where position in line matters)
 *	returns the string representation of that function's return value 
 */
-function textify($function, $arguments, $spaces = false) {
+function textify($function, $arguments,  $header = false, $spaces = false) {
 	$result = call_user_func_array($function, $arguments);
-	return formatText($result, $spaces);
+	return formatText($result, $header, $spaces);
 }
 
-function formatText($arr, $spaces = false) {
+function formatText($arr, $header = false, $spaces = false) {
 	if (!is_array($arr) ) {
 		return strval($arr);
 	}
 	//set up the spacing array, even if it doesn't exist
+
 	$first = reset($arr);
-	if (!is_array($first)) { //single observation line
+	if (!is_array($first)) { //we have a single observation line
 		$arr = array("0" => $arr);
 		$first = reset($arr);
 	}
+	if (is_array($header)) { // we also want to add names of column, so let's figure out how much spaces we need to add
+		$header = array_combine(array_keys($first), $header);
+		array_unshift($arr, $header);
+	}
+
 	$spaceLength = array();
 	$spaces = is_array($spaces) ? array_reverse($spaces) : $spaces;
-	foreach($first as $key => $value) {
+
+	foreach($first as $key => $value) { 
 		if (is_array($spaces)) {
 			$spaceLength[$key] = array_pop($spaces);
 		} else { //no space array given, add 1 to length of longest bit of text in column;
@@ -52,6 +60,7 @@ function formatText($arr, $spaces = false) {
 			$spaceLength[$key] = $maxLength;
 		}
 	}
+
 	$txt = "";
 	foreach ($arr as $line) {
 		$txtLine = "";
@@ -292,35 +301,19 @@ function linearInterpolate($y, $x1, $y1, $x2, $y2) {
 }
 
 /**
-* TODO remove this, replace with regular interpolation that adds 360 degrees to any values more than 1 degree in difference
+* TODO doc
 */
-function linearTrigInterpolate($y, $x1, $y1, $x2, $y2) {
-	$ang1 = deg2rad($x1);
-	$ang2 = deg2rad($x2);
-	print_r($y . " " . $y1 . " " . $y2 . "\n");
-	print_r($x1 . " " . $x2 . " ".  $ang1 . " " . $ang2 ."\n");
-	print_r(sin($ang1) . " " .sin($ang2)  . " " . cos($ang1)  . " " . cos($ang2)."\n");
-	$sin = linearInterpolate($y, sin($ang1), $y1, sin($ang2), $y2);
-	$cos = linearInterpolate($y, cos($ang1), $y1, cos($ang2), $y2);
-	$abs_sin = abs($sin);
-	$abs_cos = abs($cos);
-	print_r($sin . " " . $abs_sin . " " . $cos . " " . $abs_cos . "\n\n");
-	$x = rad2deg(asin($abs_sin));
-	//TODO: fix, it's not working
-	if($sin == $abs_sin) {
-		if($cos == $abs_cos) { //quarter 1
-		} else { //quarter 2
-			$x = 180 - $x;
-		}
- 	} else {
-		if($cos == $abs_cos) { //quarter 4
-			$x = 360 - $x;
-		} else { //quarter 3
-			$x = 180 + $x;
-		}
-	} 
+function linearInterpolateRA($y, $x1, $y1, $x2, $y2) {
+	if($x1 - $x2 > 1 )  { //this sort of difference on 2 positions minutes away means we've crossed the 0/360 divide
+		$x1 > $x2 ? $x2 += 360 : $x1 += 360;
+	}
+	$x =  linearInterpolate($y, $x1, $y1, $x2, $y2);
+	if ($x >= 360) {
+		$x -= 360;
+	}
 	return $x;
 }
+
 
 //end #2
 
@@ -537,7 +530,7 @@ function getObservationInterval($obs) {
 }
 
 /**
-* TODO write doc
+* TODO write doc, make it work on a non-saved file
 */
 function omc($fileName) {
 	$rawObs = parseFile($fileName, "parseMPC");
@@ -568,10 +561,12 @@ function omc($fileName) {
 	return($flatObs);
 }
 
-//TODO make it do something actually useful
+/**
+* TODO write documentation, finish adding 
+*/
 function addOC($obs, $eph) {
-	print_r(formatText($obs)); #should be 4 in test
-	print_r(formatText($eph)); #should be 31 in test
+	// print_r(formatText($obs)); #should be 4 in test
+	// print_r(formatText($eph)); #should be 31 in test
 	foreach($obs as $key => $obsLine) { //adding numeric RA/dec values
 		$obsLine["al"] = calcDMS($obsLine["alhr"], $obsLine["almin"], $obsLine["alsec"]) * 15;
 		$obsLine["del"] = calcDMS($obsLine["delgr"], $obsLine["delmin"], $obsLine["delsec"], $obsLine["delsign"]);
@@ -580,7 +575,7 @@ function addOC($obs, $eph) {
 	$addVals = array();
 	if ($eph == false) {
 		//we didn't find the asteroid, treat it as such
-		$addVals["found"] = "Not found";
+		$addVals["found"] = "N";
 		
 	}
 	foreach($eph as $key => $ephLine) { //adding numeric RA/dec values
@@ -588,41 +583,22 @@ function addOC($obs, $eph) {
 		$ephLine["del"] = calcDMS($ephLine["DEC_d"], $ephLine["DEC_m"], $ephLine["DEC_s"], $ephLine["DEC_sign"]);
 		$eph[$key] = $ephLine;
 	}
-	$addVals["found"] = "Found " . count($eph) . " elements";
+	$addVals["found"] = "Y";
 	$oc = array();
-	//for testing purposes, replace with something actually useful later on
-	$test = array();
 	foreach($obs as $obsLine) {
 		$newLine = $obsLine;
 		$newLine = array_merge($newLine, $addVals);
-		if ($newLine["found"] !== "Not found") {
-		//TODO interpolation
+		if ($newLine["found"] !== "N") {
 			$closest = getClosest($newLine, $eph, "JD", 2);
-			$est_al_trig = linearTrigInterpolate($newLine["JD"], $closest[0]["al"], $closest[0]["JD"], $closest[1]["al"], $closest[1]["JD"]);
-			$newLine["est_al_trig"] = $est_al_trig;
-			$est_al = linearInterpolate($newLine["JD"], $closest[0]["al"], $closest[0]["JD"], $closest[1]["al"], $closest[1]["JD"]);
+			$est_al = linearInterpolateRA($newLine["JD"], $closest[0]["al"], $closest[0]["JD"], $closest[1]["al"], $closest[1]["JD"]);
 			$newLine["est_al"] = $est_al;
 			$est_del = linearInterpolate($newLine["JD"], $closest[0]["del"], $closest[0]["JD"], $closest[1]["del"], $closest[1]["JD"]);
 			$newLine["est_del"] = $est_del;
-			//TODO check if you missed anything with ra calculation, if no, do interpolation based on tan/ctan
+			// TODO add errors and whatever else is needed
 		}
 		array_push($oc, $newLine);
 		$test = $obsLine; //remove after interpolation gets added above this
 	} 
-
-	/*
-	print_r("Eph\n");
-	print_r(formatText($eph) ."\n");
-	print_r("Test\n");
-	print_r(formatText($test) . "\n");
-	print_r($test);
-	print_r("\n");
-	$closest = getClosest($test, $eph, "JD", 2); //TODO move to foreach part, add interpolation
-	print_r("Newline\n");
-	print_r($closest);
-	print_r("\n");
-	print_r(formatText($closest) . "\n");
-	print_r("Yay\n");*/
 	return $oc;
 }
 
