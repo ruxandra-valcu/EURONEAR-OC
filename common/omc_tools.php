@@ -28,6 +28,7 @@ function textify($function, $arguments,  $header = false, $spaces = false) {
 	return formatText($result, $header, $spaces);
 }
 
+//TODO doc
 function formatText($arr, $header = false, $spaces = false) {
 	if (!is_array($arr) ) {
 		return strval($arr);
@@ -72,6 +73,8 @@ function formatText($arr, $header = false, $spaces = false) {
 	}
 	return $txt;
 }
+
+//TODO functions that print arrays as  html tables, csvs
 
 /**
 * given an array of arrays, all with the same keys (say, observation lines), and a list of keys to group by
@@ -290,6 +293,30 @@ function calcDMS($degree, $minute, $second, $sign = "+") {
 		$second = - $second;
 	}
 	return $degree + $minute / 60 + $second / 3600;
+}
+
+/**
+* TODO doc
+*/
+function getDMS($value, $keepSign = false) {
+	$sign = $value < 0 ? "-" : "+";
+	$value = $value < 0 ? -$value : $value;
+	$h = floor($value);
+	$value = ($value - $h) * 60.0;
+	$m = floor($value);
+	$s = ($value - $m) * 60.0;
+	if ($s > 59.999) {	
+		$s -= 60.0;
+		$m += 1;
+	}
+	if ($m >= 60) {
+		$m -= 60;
+		$h = $sign == "-" ? $h - 1 : $h + 1;
+	}
+	$sh = $keepSign ? array("sign" => $sign, "hour" => $h) : array("degree" => $h);
+	$ms = array("minute" => $m, "second" => $s);
+	$result = array_merge($sh, $ms);
+	return $result;
 }
 
 /**
@@ -562,7 +589,7 @@ function omc($fileName) {
 }
 
 /**
-* TODO write documentation, finish adding 
+* TODO write documentation, finish
 */
 function addOC($obs, $eph) {
 	// print_r(formatText($obs)); #should be 4 in test
@@ -590,14 +617,21 @@ function addOC($obs, $eph) {
 		$newLine = array_merge($newLine, $addVals);
 		if ($newLine["found"] !== "N") {
 			$closest = getClosest($newLine, $eph, "JD", 2);
-			$est_al = linearInterpolateRA($newLine["JD"], $closest[0]["al"], $closest[0]["JD"], $closest[1]["al"], $closest[1]["JD"]);
-			$newLine["est_al"] = $est_al;
-			$est_del = linearInterpolate($newLine["JD"], $closest[0]["del"], $closest[0]["JD"], $closest[1]["del"], $closest[1]["JD"]);
-			$newLine["est_del"] = $est_del;
+			//interpolate
+			$estAl = linearInterpolateRA($newLine["JD"], $closest[0]["al"], $closest[0]["JD"], $closest[1]["al"], $closest[1]["JD"]);
+			$newLine["est_al"] = $estAl;
+			$estDel = linearInterpolate($newLine["JD"], $closest[0]["del"], $closest[0]["JD"], $closest[1]["del"], $closest[1]["JD"]);
+			$newLine["est_del"] = $estDel;
+			$newLine["est_al_print"] = implode(" ", getDMS($estAl, true));
+			$newLine["est_del_print"] = implode(" ", getDMS($estDel));
 			// TODO add errors and whatever else is needed
+			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600 * 15.0 * cos($estDel * pi() / 180.0);
+			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600;
+			$newLine["alomc_print"] = implode(" ", getDMS($newLine["alomc"], true));
+			$newLine["delomc_print"] = implode(" ", getDMS($newLine["delomc"]));
+			$newLine["distomc"] = sqrt($newLine["alomc"] * $newLine["alomc"] + $newLine["delomc"] * $newLine["delomc"]);
 		}
 		array_push($oc, $newLine);
-		$test = $obsLine; //remove after interpolation gets added above this
 	} 
 	return $oc;
 }
@@ -622,8 +656,9 @@ function getClosest($obs, $possible, $column, $nr) {
 }
 
 
-
-//TODO add functions actually calculating the ephemerid
+//TODO write print function to nice format
 
 
 ?>
+
+
