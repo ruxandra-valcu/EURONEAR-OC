@@ -74,7 +74,60 @@ function formatText($arr, $header = false, $spaces = false) {
 	return $txt;
 }
 
-//TODO functions that print arrays as  html tables, csvs
+/**
+*	Given a data array and a potential header row, print as CSV
+*/
+function formatCSV($array, $header = FALSE) {
+	$first = reset($array);
+	if (!is_array($first)) { //we have a single observation line
+		$array = array("0" => $array);
+	}
+	if ($header != FALSE) {
+		array_unshift($array, $header);
+	}
+	$rows = array();
+	foreach($array as $key => $value) {
+		$rows[$key] = implode(",", $value);
+	}
+	$csv = implode("\n", $rows);
+	return $csv;
+}
+
+/**
+*	Given a data array and a potential header row, print as HTML table
+*/
+function formatHTMLTable($array, $header = FALSE) {
+	$first = reset($array);
+	if (!is_array($first)) { //we have a single observation line
+		$array = array("0" => $array);
+	}
+	$rows = array();
+	foreach($array as $key => $value) {
+		$rows[$key] = "<tr><td>" . implode("</td><td>", $value) . "</td></tr>";
+	}
+	if ($header != FALSE) {
+		$htmlH = "<tr><th>" . implode("</th><th>", $header) . "</th></tr>";
+		$array_unshift($rows, $header)
+	}
+	$html_table = "<table>" .  implode("", $rows) . "</table>";
+	return $html_table;
+}
+
+/**
+*	Given a data array and a list of columns to keep, returns the data array subsetted by the given columns
+*/
+function subset_array($array, $keys) {
+	$keys = array_flip($keys);
+	$first = reset($array);
+	if (!is_array($first)) { //we have a single observation line
+		$array = array("0" => $array);
+	}
+	$res = array();
+	foreach($array as $key  => $value) {
+		$res[$key] = array_intersect_key($value, $keys);
+	}
+	return $res;
+}
 
 /**
 * given an array of arrays, all with the same keys (say, observation lines), and a list of keys to group by
