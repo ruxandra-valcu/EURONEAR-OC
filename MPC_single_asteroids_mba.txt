@@ -1,0 +1,13 @@
+COD 950
+CON EURONEAR (O. Vaduvescu et al)
+CON [ovidiu.vaduvescu@gmail.com]
+OBS P. Short, O. Vaduvescu
+MEA A. Tudorica, O. Vaduvescu
+TEL 2.5-m f/3.3 reflector + CCD
+NET PPMXL
+
+     K04S36H  C2017 03 28.18709 14 50 36.98 -14 18 55.5          21.1 R      950
+     K04S36H  C2017 03 28.19227 14 50 36.89 -14 18 54.0          20.9 R      950
+     K04S36H  C2017 03 28.19758 14 50 36.78 -14 18 52.6          21.0 R      950
+     K04S36H  C2017 03 28.20285 14 50 36.69 -14 18 51.0          21.0 R      950
+     K04S36H  C2017 03 28.20803 14 50 36.58 -14 18 49.4          21.0 R      950

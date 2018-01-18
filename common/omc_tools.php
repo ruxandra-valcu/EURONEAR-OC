@@ -28,7 +28,10 @@ function textify($function, $arguments,  $header = false, $spaces = false) {
 	return formatText($result, $header, $spaces);
 }
 
-//TODO doc
+/**
+* Given a data array and optionally a header row and a list of how many characters each column should take
+*	returns the data array formatted as a text file. Should the space list be missing, it'll autoformat
+*/
 function formatText($arr, $header = false, $spaces = false) {
 	if (!is_array($arr) ) {
 		return strval($arr);
@@ -103,13 +106,13 @@ function formatHTMLTable($array, $header = FALSE) {
 	}
 	$rows = array();
 	foreach($array as $key => $value) {
-		$rows[$key] = "<tr><td>" . implode("</td><td>", $value) . "</td></tr>";
+		$rows[$key] = "\t<tr><td>" . implode("</td><td>", $value) . "</td></tr>\n";
 	}
 	if ($header != FALSE) {
-		$htmlH = "<tr><th>" . implode("</th><th>", $header) . "</th></tr>";
-		$array_unshift($rows, $header)
+		$htmlH = "\t<tr><th>" . implode("</th><th>", $header) . "</th></tr>\n";
+		array_unshift($rows, $htmlH);
 	}
-	$html_table = "<table>" .  implode("", $rows) . "</table>";
+	$html_table = "\n<table>" .  implode("", $rows) . "</table>\n";
 	return $html_table;
 }
 
@@ -187,8 +190,6 @@ function parseFile($fileName, $parseFunction) {
 	}
 	return call_user_func_array($parseFunction, array($contents));
 }
-
-
 
 
 function lettersToNumbers($letter) {
@@ -337,7 +338,9 @@ function gregorianDate($julianDay, $addMinute = false) {
 }
 
 /**
-* TODO doc
+* Given a value represented as degree/minute/second, and optionally sign
+* returns the single numeric value corresponding to it.
+* If using it for RA make sure to multiply by 15 afterwards
 */
 function calcDMS($degree, $minute, $second, $sign = "+") {
 	if ($sign == "-") {
@@ -349,7 +352,8 @@ function calcDMS($degree, $minute, $second, $sign = "+") {
 }
 
 /**
-* TODO doc
+* Given a numeric value, returns its representation as degree/minute/second, and optionally sign
+* If using it for RA make sure to divide by 15 beforehand
 */
 function getDMS($value, $keepSign = false) {
 	$sign = $value < 0 ? "-" : "+";
@@ -373,7 +377,8 @@ function getDMS($value, $keepSign = false) {
 }
 
 /**
-* TODO doc
+* Given 2 points x1y1 and x2y2 and a value y
+* calculates the x that would correspond to y by linear interpolation
 */
 function linearInterpolate($y, $x1, $y1, $x2, $y2) {
 	$x = $x1 + (($y - $y1) * ($y2 - $y1) / ($x2 - $x1));
@@ -381,7 +386,10 @@ function linearInterpolate($y, $x1, $y1, $x2, $y2) {
 }
 
 /**
-* TODO doc
+* Linear interpolation for RA values w/ handling of crossing the vernal equinox
+* Supposed to be used for small time intervals, so if the difference between the 
+* interpolation RA value is above 1 degree it'll think we crossed the vernal 
+* equinox and apply the correction
 */
 function linearInterpolateRA($y, $x1, $y1, $x2, $y2) {
 	if($x1 - $x2 > 1 )  { //this sort of difference on 2 positions minutes away means we've crossed the 0/360 divide
@@ -398,7 +406,8 @@ function linearInterpolateRA($y, $x1, $y1, $x2, $y2) {
 //end #2
 
 
-//3 omc-related stuff
+//3 omc-related stuff - should probably be placed in its own file later 
+
 /**
 * parses the contents of a MPC file into a PHP array containing just the observation data
 */
@@ -610,7 +619,10 @@ function getObservationInterval($obs) {
 }
 
 /**
-* TODO write doc, make it work on a non-saved file
+* TODO make it work on a non-saved file
+* Given a MPC file with potentially multiple objects, it parses it, 
+* gets ephemerids for each object from either NEODYS or ASTDYS
+* and returns an array of observations, estimated RA and DEC and OC diff
 */
 function omc($fileName) {
 	$rawObs = parseFile($fileName, "parseMPC");
@@ -642,11 +654,10 @@ function omc($fileName) {
 }
 
 /**
-* TODO write documentation, finish
+* Given a list of observed positions for a single object and the NEODYS/ASTDYS ephemerid
+* calculates estimated positions according to the ephemerid and OC differences
 */
 function addOC($obs, $eph) {
-	// print_r(formatText($obs)); #should be 4 in test
-	// print_r(formatText($eph)); #should be 31 in test
 	foreach($obs as $key => $obsLine) { //adding numeric RA/dec values
 		$obsLine["al"] = calcDMS($obsLine["alhr"], $obsLine["almin"], $obsLine["alsec"]) * 15;
 		$obsLine["del"] = calcDMS($obsLine["delgr"], $obsLine["delmin"], $obsLine["delsec"], $obsLine["delsign"]);
@@ -675,13 +686,10 @@ function addOC($obs, $eph) {
 			$newLine["est_al"] = $estAl;
 			$estDel = linearInterpolate($newLine["JD"], $closest[0]["del"], $closest[0]["JD"], $closest[1]["del"], $closest[1]["JD"]);
 			$newLine["est_del"] = $estDel;
-			$newLine["est_al_print"] = implode(" ", getDMS($estAl, true));
+			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0, true));
 			$newLine["est_del_print"] = implode(" ", getDMS($estDel));
-			// TODO add errors and whatever else is needed
-			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600 * 15.0 * cos($estDel * pi() / 180.0);
-			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600;
-			$newLine["alomc_print"] = implode(" ", getDMS($newLine["alomc"], true));
-			$newLine["delomc_print"] = implode(" ", getDMS($newLine["delomc"]));
+			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * cos($estDel * pi() / 180.0);
+			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600;;
 			$newLine["distomc"] = sqrt($newLine["alomc"] * $newLine["alomc"] + $newLine["delomc"] * $newLine["delomc"]);
 		}
 		array_push($oc, $newLine);
@@ -707,9 +715,6 @@ function getClosest($obs, $possible, $column, $nr) {
 	$closest = array_slice($possible, 0, $nr);
 	return $closest;
 }
-
-
-//TODO write print function to nice format
 
 
 ?>
