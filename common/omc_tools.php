@@ -186,7 +186,7 @@ function sameKeys($arr) {
 function parseFile($fileName, $parseFunction) {
 	$contents = file_get_contents($fileName);
 	if ($contents == FALSE) {
-		return "ERROR: File not found";
+		return "\nERROR: File not found\n";
 	}
 	return call_user_func_array($parseFunction, array($contents));
 }
@@ -463,7 +463,7 @@ function parseMPC($file) {
 		if (!is_numeric($obs["year"]) || !is_numeric($obs["month"]) || !is_numeric($obs["day"]) ||
 				!is_numeric($obs["alhr"]) || !is_numeric($obs["almin"]) || !is_numeric($obs["alsec"]) ||
 				!is_numeric($obs["delgr"]) || !is_numeric($obs["delmin"]) || !is_numeric($obs["delsec"])) {
-			return "ERROR: File not in MPC format";
+			return "ERROR: File not in MPC format\n";
 		}
 		$obs["JD"] = julianDay($obs["year"], $obs["month"], $obs["day"]);
 		// add it to observation array
@@ -618,20 +618,20 @@ function getObservationInterval($obs) {
 	return($interval);
 }
 
+
 /**
-* TODO make it work on a non-saved file
-* Given a MPC file with potentially multiple objects, it parses it, 
+* Given the contents of a MPC file with potentially multiple objects, it parses it, 
 * gets ephemerids for each object from either NEODYS or ASTDYS
 * and returns an array of observations, estimated RA and DEC and OC diff
 */
-function omc($fileName) {
-	$rawObs = parseFile($fileName, "parseMPC");
+function omc_2($fileContents) {
+	$rawObs = parseMPC($fileContents);	
 	if(is_string($rawObs)) { //it's an error message, should return an array
 		return($rawObs);
-	}
+	}	
 	$rawObs = chunkArray($rawObs, array("id", "obscode"));
 	if ($rawObs == false) {
-		return("Error: parsed file incorrectly");
+		return("\nError: parsed file incorrectly\n");
 	}
 	$enrichedObs = array();
 	foreach($rawObs as $key => $obs) {
