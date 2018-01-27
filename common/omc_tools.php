@@ -624,7 +624,7 @@ function getObservationInterval($obs) {
 * gets ephemerids for each object from either NEODYS or ASTDYS
 * and returns an array of observations, estimated RA and DEC and OC diff
 */
-function omc_2($fileContents) {
+function omc($fileContents) {
 	$rawObs = parseMPC($fileContents);	
 	if(is_string($rawObs)) { //it's an error message, should return an array
 		return($rawObs);
@@ -686,8 +686,8 @@ function addOC($obs, $eph) {
 			$newLine["est_al"] = $estAl;
 			$estDel = linearInterpolate($newLine["JD"], $closest[0]["del"], $closest[0]["JD"], $closest[1]["del"], $closest[1]["JD"]);
 			$newLine["est_del"] = $estDel;
-			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0, true));
-			$newLine["est_del_print"] = implode(" ", getDMS($estDel));
+			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0));
+			$newLine["est_del_print"] = implode(" ", getDMS($estDel, true));
 			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * cos($estDel * pi() / 180.0);
 			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600;;
 			$newLine["distomc"] = sqrt($newLine["alomc"] * $newLine["alomc"] + $newLine["delomc"] * $newLine["delomc"]);

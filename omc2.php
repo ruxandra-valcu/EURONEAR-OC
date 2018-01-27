@@ -19,7 +19,7 @@ if(isset($_POST["submit"])) {
 	else {
 	    echo "<br>Calculating...<br/>";
   	    $contents = file_get_contents($_FILES["omc_file"]["tmp_name"]);
-        $oc = omc_2($contents);
+        $oc = omc($contents);
         if (is_string($oc)) {
             echo "<br>" . $oc . "</br>";
         }
