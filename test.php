@@ -11,6 +11,7 @@ $neaFilename = "MPCReportExample.txt";
 $oc = omc(file_get_contents($neaFilename));
 print_r($oc);																							//prints as PHP array
 file_put_contents("test.txt", formatText($oc, array_keys(reset($oc))))  ;  			//prints as formatted text file
+
 //print_r(formatCSV($oc, array_keys(reset($oc))))  ;				//prints as CSV
 //print_r(formatHTMLTable($oc, array_keys(reset($oc))))  ;	//prints as HTML table
 

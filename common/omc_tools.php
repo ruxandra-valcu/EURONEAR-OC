@@ -179,6 +179,17 @@ function sameKeys($arr) {
 	return true;
 }
 
+/**
+* given an array, reorders it in the order specified by $keys
+*/
+function resort($array, $keys) {
+  $newArray = array();
+  foreach($keys as $key) {
+    $newArray[$key] = $array[$key];
+  }
+  return($newArray);
+}
+
 
 /**
 * given a file(by handle) and a parsing function, returns the parsed file 
@@ -298,6 +309,9 @@ function julianDay($year, $month, $day, $hour = 0) {
   return $JD;
 }
 
+/**
+* given a date, a time in % of day and optionally a format, returns JD
+*/
 function julianDateFormat($date, $time, $format = "j M Y") {
 	$parsedDate = date_create_from_format($format, $date);
 	$year = date_format($parsedDate	, 'Y');
@@ -688,12 +702,15 @@ function addOC($obs, $eph) {
 			$newLine["est_del"] = $estDel;
 			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0));
 			$newLine["est_del_print"] = implode(" ", getDMS($estDel, true));
-			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * cos($estDel * pi() / 180.0);
-			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600;;
+			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * cos(deg2rad($estDel));
+			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600.0;
 			$newLine["distomc"] = sqrt($newLine["alomc"] * $newLine["alomc"] + $newLine["delomc"] * $newLine["delomc"]);
 		}
 		array_push($oc, $newLine);
 	} 
+	foreach($oc as $key => $row) {
+	  $oc[$key] = formatOMC($row);
+	}
 	return $oc;
 }
 
@@ -714,6 +731,25 @@ function getClosest($obs, $possible, $column, $nr) {
 	});
 	$closest = array_slice($possible, 0, $nr);
 	return $closest;
+}
+
+/**
+* given an OMC data line, formats it nicely
+* helper function for omc
+*/
+function formatOMC($data) {
+  $keys = array("id", "Date", "RA observed", "DEC observed", "RA estimated", "DEC estimated", "alomc", "delomc", "distomc");
+  print_r($data);
+  foreach($data as $key => $value) {
+    $data["Date"] = $data["year"] . " " . $data["month"] . " " . $data["day"];
+    $data["RA observed"] = $data["alhr"] . " " .  $data["almin"] . " " . $data["alsec"];
+    $data["DEC observed"] = $data["delsign"] . $data["delgr"] . " " . $data["delmin"] . " " . $data["delsec"];
+    $data["RA estimated"] = $data["est_al_print"];
+    $data["DEC estimated"] = $data["est_del_print"];
+  }
+  print_r($data);
+  $data = resort($data, $keys);
+  return $data;
 }
 
 
