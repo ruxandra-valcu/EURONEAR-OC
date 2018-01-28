@@ -702,7 +702,7 @@ function addOC($obs, $eph) {
 			$newLine["est_del"] = $estDel;
 			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0));
 			$newLine["est_del_print"] = implode(" ", getDMS($estDel, true));
-			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * cos(deg2rad($estDel));
+			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * 15 * cos(deg2rad($estDel));
 			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600.0;
 			$newLine["distomc"] = sqrt($newLine["alomc"] * $newLine["alomc"] + $newLine["delomc"] * $newLine["delomc"]);
 		}
