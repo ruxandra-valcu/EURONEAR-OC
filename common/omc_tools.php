@@ -395,7 +395,7 @@ function getDMS($value, $keepSign = false) {
 * calculates the x that would correspond to y by linear interpolation
 */
 function linearInterpolate($y, $x1, $y1, $x2, $y2) {
-	$x = $x1 + (($y - $y1) * ($y2 - $y1) / ($x2 - $x1));
+	$x = $x1 + (($y - $y1) * ($x2 - $x1) / ($y2 - $y1));
 	return $x;
 }
 
@@ -702,7 +702,7 @@ function addOC($obs, $eph) {
 			$newLine["est_del"] = $estDel;
 			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0));
 			$newLine["est_del_print"] = implode(" ", getDMS($estDel, true));
-			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * 15 * cos(deg2rad($estDel));
+			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * cos(deg2rad($estDel));
 			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600.0;
 			$newLine["distomc"] = sqrt($newLine["alomc"] * $newLine["alomc"] + $newLine["delomc"] * $newLine["delomc"]);
 		}
@@ -739,7 +739,6 @@ function getClosest($obs, $possible, $column, $nr) {
 */
 function formatOMC($data) {
   $keys = array("id", "Date", "RA observed", "DEC observed", "RA estimated", "DEC estimated", "alomc", "delomc", "distomc");
-  print_r($data);
   foreach($data as $key => $value) {
     $data["Date"] = $data["year"] . " " . $data["month"] . " " . $data["day"];
     $data["RA observed"] = $data["alhr"] . " " .  $data["almin"] . " " . $data["alsec"];
@@ -747,7 +746,6 @@ function formatOMC($data) {
     $data["RA estimated"] = $data["est_al_print"];
     $data["DEC estimated"] = $data["est_del_print"];
   }
-  print_r($data);
   $data = resort($data, $keys);
   return $data;
 }
