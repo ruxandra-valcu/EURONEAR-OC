@@ -101,7 +101,7 @@ function formatHTMLTable($array, $header = FALSE) {
 		$htmlH = "\t<tr><th>" . implode("</th><th>", $header) . "</th></tr>\n";
 		array_unshift($rows, $htmlH);
 	}
-	$html_table = "\n<table>" .  implode("", $rows) . "</table>\n";
+	$html_table = "\n<table align = \"right\">" .  implode("", $rows) . "</table>\n";
 	return $html_table;
 }
 /**
@@ -251,6 +251,21 @@ function lettersToNumbers($letter) {
 	}
 	return $letter;
 }
+
+/**
+* adds a zero to the string representation of a number between -10 and 10
+* used to print things nicely
+*/
+function zeroPrefix($n) {
+  if($n >= 10) {
+    return $n;
+  } 
+  if($n <= -10) {
+    return $n;
+  } 
+  return "0" . $n;
+}
+
 //end #1
 //#2 astronomical calculations and/or queries
 /**
@@ -338,7 +353,7 @@ function calcDMS($degree, $minute, $second, $sign = "+") {
 * Given a numeric value, returns its representation as degree/minute/second, and optionally sign
 * If using it for RA make sure to divide by 15 beforehand
 */
-function getDMS($value, $keepSign = false) {
+function getDMS($value, $precision = 2, $keepSign = false) {
 	$sign = $value < 0 ? "-" : "+";
 	$value = $value < 0 ? -$value : $value;
 	$h = floor($value);
@@ -353,6 +368,9 @@ function getDMS($value, $keepSign = false) {
 		$m -= 60;
 		$h = $sign == "-" ? $h - 1 : $h + 1;
 	}
+	$h = zeroPrefix($h);
+	$m = zeroPrefix($m);
+	$s = zeroPrefix(number_format($s, $precision));
 	$sh = $keepSign ? array("sign" => $sign, "hour" => $h) : array("degree" => $h);
 	$ms = array("minute" => $m, "second" => $s);
 	$result = array_merge($sh, $ms);
@@ -615,7 +633,7 @@ function omc($fileContents) {
 * Given a list of observed positions for a single object and the NEODYS/ASTDYS ephemerid
 * calculates estimated positions according to the ephemerid and OC differences
 */
-function addOC($obs, $eph) {
+function addOC($obs, $eph, $addEmptyRows = FALSE) {
 	foreach($obs as $key => $obsLine) { //adding numeric RA/dec values
 		$obsLine["al"] = calcDMS($obsLine["alhr"], $obsLine["almin"], $obsLine["alsec"]) * 15;
 		$obsLine["del"] = calcDMS($obsLine["delgr"], $obsLine["delmin"], $obsLine["delsec"], $obsLine["delsign"]);
@@ -644,8 +662,8 @@ function addOC($obs, $eph) {
 			$newLine["est_al"] = $estAl;
 			$estDel = linearInterpolate($newLine["JD"], $closest[0]["del"], $closest[0]["JD"], $closest[1]["del"], $closest[1]["JD"]);
 			$newLine["est_del"] = $estDel;
-			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0));
-			$newLine["est_del_print"] = implode(" ", getDMS($estDel, true));
+			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0, 3));
+			$newLine["est_del_print"] = implode(" ", getDMS($estDel, 2, true));
 			$newLine["O-C RA"] = ($obsLine["al"] - $estAl) * 3600.0 * cos(deg2rad($estDel));
 			$newLine["O-C DEC"] = ($obsLine["del"] - $estDel) * 3600.0;
 			$newLine["O-C"] = sqrt($newLine["O-C RA"] * $newLine["O-C RA"] + $newLine["O-C DEC"] * $newLine["O-C DEC"]);
@@ -654,6 +672,11 @@ function addOC($obs, $eph) {
 	} 
 	foreach($oc as $key => $row) {
 	  $oc[$key] = formatOMC($row);
+	}
+	if ($addEmptyRows === TRUE) {
+	  //TODO write a subset by row value function, split the array by arrays, paste it with an empty array in between
+	  $emptyRow = array("id" => "", "Date" => "", "RA Observed" => "", "DEC Observed" => "", 
+	    "RA Calculated" => "", "DEC Calculated" => "", "O-C RA" => "", "O-C DEC" => "", "O-C" => "");
 	}
 	return $oc;
 }
@@ -679,13 +702,16 @@ function getClosest($obs, $possible, $column, $nr) {
 * helper function for omc
 */
 function formatOMC($data) {
-  $keys = array("id", "Date", "RA observed", "DEC observed", "RA estimated", "DEC estimated", "alomc", "delomc", "distomc");
+  $keys = array("id", "Date", "RA Observed", "DEC Observed", "RA Calculated", "DEC Calculated", "O-C RA", "O-C DEC", "O-C");
   foreach($data as $key => $value) {
     $data["Date"] = $data["year"] . " " . $data["month"] . " " . $data["day"];
     $data["RA Observed"] = $data["alhr"] . " " .  $data["almin"] . " " . $data["alsec"];
     $data["DEC Observed"] = $data["delsign"] . $data["delgr"] . " " . $data["delmin"] . " " . $data["delsec"];
     $data["RA Calculated"] = $data["est_al_print"];
     $data["DEC Calculated"] = $data["est_del_print"];
+    $data["O-C RA"] = number_format($data["O-C RA"], 2);
+    $data["O-C DEC"] = number_format($data["O-C DEC"], 2);
+    $data["O-C"] = number_format($data["O-C"], 2);
   }
   $data = resort($data, $keys);
   return $data;
