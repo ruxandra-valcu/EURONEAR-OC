@@ -1,7 +1,5 @@
 <?php
-
 //#1 code helpers, formatters etc.
-
 /**
 * Given a function and a list of arguments for that function
 * returns the JSON representation of that function's return value
@@ -16,8 +14,6 @@ function jsonify($function, $arguments, $pretty = FALSE) {
 	}
 	return $result . "\n";	
 }
-
-
 /**
 * Given a function, a list of argument for that function and an optional 
 * array of field padding lengths (for outputs like MPC where position in line matters)
@@ -27,7 +23,6 @@ function textify($function, $arguments,  $header = false, $spaces = false) {
 	$result = call_user_func_array($function, $arguments);
 	return formatText($result, $header, $spaces);
 }
-
 /**
 * Given a data array and optionally a header row and a list of how many characters each column should take
 *	returns the data array formatted as a text file. Should the space list be missing, it'll autoformat
@@ -37,7 +32,6 @@ function formatText($arr, $header = false, $spaces = false) {
 		return strval($arr);
 	}
 	//set up the spacing array, even if it doesn't exist
-
 	$first = reset($arr);
 	if (!is_array($first)) { //we have a single observation line
 		$arr = array("0" => $arr);
@@ -47,10 +41,8 @@ function formatText($arr, $header = false, $spaces = false) {
 		$header = array_combine(array_keys($first), $header);
 		array_unshift($arr, $header);
 	}
-
 	$spaceLength = array();
 	$spaces = is_array($spaces) ? array_reverse($spaces) : $spaces;
-
 	foreach($first as $key => $value) { 
 		if (is_array($spaces)) {
 			$spaceLength[$key] = array_pop($spaces);
@@ -64,7 +56,6 @@ function formatText($arr, $header = false, $spaces = false) {
 			$spaceLength[$key] = $maxLength;
 		}
 	}
-
 	$txt = "";
 	foreach ($arr as $line) {
 		$txtLine = "";
@@ -76,7 +67,6 @@ function formatText($arr, $header = false, $spaces = false) {
 	}
 	return $txt;
 }
-
 /**
 *	Given a data array and a potential header row, print as CSV
 */
@@ -95,7 +85,6 @@ function formatCSV($array, $header = FALSE) {
 	$csv = implode("\n", $rows);
 	return $csv;
 }
-
 /**
 *	Given a data array and a potential header row, print as HTML table
 */
@@ -115,7 +104,6 @@ function formatHTMLTable($array, $header = FALSE) {
 	$html_table = "\n<table>" .  implode("", $rows) . "</table>\n";
 	return $html_table;
 }
-
 /**
 *	Given a data array and a list of columns to keep, returns the data array subsetted by the given columns
 */
@@ -131,7 +119,6 @@ function subset_array($array, $keys) {
 	}
 	return $res;
 }
-
 /**
 * given an array of arrays, all with the same keys (say, observation lines), and a list of keys to group by
 * groups them by unique key/value combinations, e.g. only observations of the same asteroid from the same observatory
@@ -150,7 +137,6 @@ function chunkArray($arr, $keys) {
 	}
 	return $groupedArray;
 }
-
 /**
 * helper function for chunkArray, given an array and a set of keys it returns a single key 
 * based on the values said keys have in the array
@@ -162,8 +148,6 @@ function createKey($line, $keys) {
 	}
 	return $finalKey;
 }
-
-
 /**
 * given an array of arrays, checks if all of them have the same keys
 * ugly sanity check for php not actually having decent data structures
@@ -178,7 +162,6 @@ function sameKeys($arr) {
 	}
 	return true;
 }
-
 /**
 * given an array, reorders it in the order specified by $keys
 */
@@ -189,8 +172,6 @@ function resort($array, $keys) {
   }
   return($newArray);
 }
-
-
 /**
 * given a file(by handle) and a parsing function, returns the parsed file 
 */
@@ -201,8 +182,6 @@ function parseFile($fileName, $parseFunction) {
 	}
 	return call_user_func_array($parseFunction, array($contents));
 }
-
-
 function lettersToNumbers($letter) {
 	$map = array(
 		"0" => "0", 
@@ -272,12 +251,8 @@ function lettersToNumbers($letter) {
 	}
 	return $letter;
 }
-
 //end #1
-
-
 //#2 astronomical calculations and/or queries
-
 /**
 *Site name to base query address mapping
 */
@@ -291,8 +266,6 @@ function siteMap($site) {
 	}
 	return $site;
 }
-
-
 /**
 * calculates JD giving a gregorian calendar date ($day with dec coresp UT)
 * ref: J. Meeus, Astronomical Algorithms
@@ -308,7 +281,6 @@ function julianDay($year, $month, $day, $hour = 0) {
 	$JD = floor(365.25 * ($year + 4716)) + floor(30.6001 * ($month + 1)) + $day + $b - 1524.5 + $hour;
   return $JD;
 }
-
 /**
 * given a date, a time in % of day and optionally a format, returns JD
 */
@@ -319,7 +291,6 @@ function julianDateFormat($date, $time, $format = "j M Y") {
 	$day = date_format($parsedDate, 'j');
 	return julianDay($year, $month, $day, $time);
 }
-
 /**
 * given a JD, returns the gregorian calendar date as an array of year, month, day, hour, minute
 *	ref: J. Meeus, Astronomical Algorithms
@@ -350,7 +321,6 @@ function gregorianDate($julianDay, $addMinute = false) {
 	$date = array("year" => $year, "month" => $month, "day" => $day, "hour" => $hour, "minute" => $minute);
 	return $date;
 }
-
 /**
 * Given a value represented as degree/minute/second, and optionally sign
 * returns the single numeric value corresponding to it.
@@ -364,7 +334,6 @@ function calcDMS($degree, $minute, $second, $sign = "+") {
 	}
 	return $degree + $minute / 60 + $second / 3600;
 }
-
 /**
 * Given a numeric value, returns its representation as degree/minute/second, and optionally sign
 * If using it for RA make sure to divide by 15 beforehand
@@ -389,16 +358,14 @@ function getDMS($value, $keepSign = false) {
 	$result = array_merge($sh, $ms);
 	return $result;
 }
-
 /**
 * Given 2 points x1y1 and x2y2 and a value y
 * calculates the x that would correspond to y by linear interpolation
 */
 function linearInterpolate($y, $x1, $y1, $x2, $y2) {
-	$x = $x1 + (($y - $y1) * ($y2 - $y1) / ($x2 - $x1));
+	$x = $x1 + (($y - $y1) * ($x2 - $x1) / ($y2 - $y1));
 	return $x;
 }
-
 /**
 * Linear interpolation for RA values w/ handling of crossing the vernal equinox
 * Supposed to be used for small time intervals, so if the difference between the 
@@ -415,13 +382,8 @@ function linearInterpolateRA($y, $x1, $y1, $x2, $y2) {
 	}
 	return $x;
 }
-
-
 //end #2
-
-
 //3 omc-related stuff - should probably be placed in its own file later 
-
 /**
 * parses the contents of a MPC file into a PHP array containing just the observation data
 */
@@ -432,7 +394,6 @@ function parseMPC($file) {
 		$line = array_pop($contents);
 	} while (trim($line) != "" && !empty($contents));
 	$contents = array_reverse($contents);
-
 	$observations = array();
 	$notMPC = false;
 	foreach($contents as $line) {
@@ -485,8 +446,6 @@ function parseMPC($file) {
 	}
 	return $observations;
 }
-
-
 /**
 * parses an observation line and returns time parameters for queryNEODYS
 * @param $obs observation, as element of the array from parseMPC 
@@ -504,9 +463,6 @@ function timeParameters($obs, $addMinute = false) {
 	$param = array("JD" => $JD, "year" => $year, "month" => $month, "day" => $day, "hour" => $hour, "minute" => $minute);
 	return($param);
 }
-
-
-
 /**
 * Queries the specified site for the ephemerid of a certain asteroid, from a certain observatory,
 * between two julian dates that must be at most $maxInterval in difference (NEODYS requirement)
@@ -530,7 +486,6 @@ function queryEphShort($site, $asteroid, $obscode, $startJD, $endJD, $maxInterva
 	preg_match($regex, $raw, $match);
 	return count($match) < 2 ? "" : $match[1];
 }
-
 /**
 * checks if an asteroid can be found on a certain site
 */
@@ -546,8 +501,6 @@ function checkIfOnSite($asteroid, $failString, $site, $queryPart = "index.php?pc
 	}
 	return true;
 }
-
-
 /**
 * checks if an asteroid is a NEA and returns the name of the site it can be found in.
 */
@@ -557,7 +510,6 @@ function checkIfNEA($asteroid) {
 	} else { return false;
 	}
 }
-
 /**
 * queries neodys/astdys for the ephemerid of an asteroid at a specific observation spot for a specific time range
 * returns php array
@@ -565,7 +517,6 @@ function checkIfNEA($asteroid) {
 function queryEph($asteroid, $obscode, $timerange, $maxInterval = 3.0) {
 	$startJD = $timerange["start"];
 	$endJD = $timerange["stop"]; //TODO replace this later with more complex obs. intervals
-
 	$site = checkIfNEA($asteroid);
 	if ($site == false) { //not found on any of the sites we're looking on
 		return false;
@@ -619,10 +570,6 @@ function queryEph($asteroid, $obscode, $timerange, $maxInterval = 3.0) {
 	}
 	return($eph);
 }
-
-
-
-
 /**
 *	for now, returns max and min JD found in the array of observations
 */
@@ -631,8 +578,6 @@ function getObservationInterval($obs) {
 	$interval = array("start" => min($jd), "stop" => max($jd));
 	return($interval);
 }
-
-
 /**
 * Given the contents of a MPC file with potentially multiple objects, it parses it, 
 * gets ephemerids for each object from either NEODYS or ASTDYS
@@ -666,7 +611,6 @@ function omc($fileContents) {
 	}
 	return($flatObs);
 }
-
 /**
 * Given a list of observed positions for a single object and the NEODYS/ASTDYS ephemerid
 * calculates estimated positions according to the ephemerid and OC differences
@@ -702,9 +646,9 @@ function addOC($obs, $eph) {
 			$newLine["est_del"] = $estDel;
 			$newLine["est_al_print"] = implode(" ", getDMS($estAl / 15.0));
 			$newLine["est_del_print"] = implode(" ", getDMS($estDel, true));
-			$newLine["alomc"] = ($obsLine["al"] - $estAl) * 3600.0 * 15 * cos(deg2rad($estDel));
-			$newLine["delomc"] = ($obsLine["del"] - $estDel) * 3600.0;
-			$newLine["distomc"] = sqrt($newLine["alomc"] * $newLine["alomc"] + $newLine["delomc"] * $newLine["delomc"]);
+			$newLine["O-C RA"] = ($obsLine["al"] - $estAl) * 3600.0 * cos(deg2rad($estDel));
+			$newLine["O-C DEC"] = ($obsLine["del"] - $estDel) * 3600.0;
+			$newLine["O-C"] = sqrt($newLine["O-C RA"] * $newLine["O-C RA"] + $newLine["O-C DEC"] * $newLine["O-C DEC"]);
 		}
 		array_push($oc, $newLine);
 	} 
@@ -713,8 +657,6 @@ function addOC($obs, $eph) {
 	}
 	return $oc;
 }
-
-
 /**
 * given an observation line, a number of possible values, a column to compare and a number of values to return
 * it returns the $nr closest values
@@ -732,27 +674,20 @@ function getClosest($obs, $possible, $column, $nr) {
 	$closest = array_slice($possible, 0, $nr);
 	return $closest;
 }
-
 /**
 * given an OMC data line, formats it nicely
 * helper function for omc
 */
 function formatOMC($data) {
   $keys = array("id", "Date", "RA observed", "DEC observed", "RA estimated", "DEC estimated", "alomc", "delomc", "distomc");
-  print_r($data);
   foreach($data as $key => $value) {
     $data["Date"] = $data["year"] . " " . $data["month"] . " " . $data["day"];
-    $data["RA observed"] = $data["alhr"] . " " .  $data["almin"] . " " . $data["alsec"];
-    $data["DEC observed"] = $data["delsign"] . $data["delgr"] . " " . $data["delmin"] . " " . $data["delsec"];
-    $data["RA estimated"] = $data["est_al_print"];
-    $data["DEC estimated"] = $data["est_del_print"];
+    $data["RA Observed"] = $data["alhr"] . " " .  $data["almin"] . " " . $data["alsec"];
+    $data["DEC Observed"] = $data["delsign"] . $data["delgr"] . " " . $data["delmin"] . " " . $data["delsec"];
+    $data["RA Calculated"] = $data["est_al_print"];
+    $data["DEC Calculated"] = $data["est_del_print"];
   }
-  print_r($data);
   $data = resort($data, $keys);
   return $data;
 }
-
-
 ?>
-
-

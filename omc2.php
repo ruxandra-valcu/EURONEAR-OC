@@ -1,8 +1,32 @@
+<HTML>
+<BODY style = "font-family:georgia;">
+
+<?php include '../header.php';?>
+
+<br>
+<font style="font-size: 18pt;"><b>&nbsp; &nbsp; 
+EURONEAR - Tools - O-C Calculator v.2
+</b></font> 
+<br><br>
+
+Description: Derives observed minus calculated (O-C) residuals for known asteroids (NEAs or others) continuous observation.  <br> 
+Input: Observing report (including header) including asteroid observations, in Minor Planet Centre (MPC) format. <br>
+Output: Offset table showing for each object the O-C in right ascension and declination. <br>
+Queries: The <a href="http://newton.dm.unipi.it/neodys/">NEODyS</a> and <a href="http://hamilton.dm.unipi.it/astdys/">AstDyS</a> 
+         services (Milani et al., Univ Pisa). 
+
+<br>
+
+<!----------------------------------------->
+<!----- RUXANDRA PHP CODE STARTS HERE ----->
+<!----------------------------------------->
+
+
 <?php
 
 require_once("common/omc_tools.php");
 
-echo ("\nTest\n");
+// echo ("\nTest\n");
 
 echo '<br><form method="POST" enctype="multipart/form-data">';
 //echo '<label for="file">Observations (file in MPC format - example <a href="'.ROOTURL.'data/MPCReportExample.txt">here</a>): </label>';
@@ -27,22 +51,23 @@ if(isset($_POST["submit"])) {
         echo formatHTMLTable($oc, array_keys(reset($oc))) ;
   	}
 }
-
-/*
-if (array_key_exists('_submit_check_omc', $_POST)) {
-    if ($_FILES["file"]["error"] > 0) {
-		echo "Upload error: " . $_FILES["file"]["error"] . "<br />";
-	}
-	else {
-  	    $contents = file_get_contents($_FILES["file"]["tmp_name"]);
-  	}
-
-# $neaFilename = "MPCReportExample.txt";
-# $contents = file_get_contents($neaFilename);
-
-$oc = omc_2($contents);
-echo("\nTest2\n");
-echo(formatHTMLTable($oc, array_keys(reset($oc))))  ;
-echo("\nTest3\n");
-*/
 ?>
+
+
+<!----------------------------------------->
+<!------ RUXANDRA PHP CODE END HERE ------->
+<!----------------------------------------->
+
+
+<!------- TOOL PAGE FOOTER NOW -------->
+<br>
+Reference: Please include the following acknowledgement in any publication using this service: <br>
+- Include in the acknowledgement: "This paper used the EURONEAR O-C Calculator v.2 \footnote{http://www.euronear.org/tools/omc2.php}". <br>
+
+<br>
+Author: Ruxandra Valcu (2018)
+<br><br>
+
+</BODY>
+</HTML>
+
