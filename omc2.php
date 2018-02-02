@@ -14,7 +14,7 @@ Input: Observing report (including header) including asteroid observations, in M
 Output: Offset table showing for each object the O-C in right ascension and declination. <br>
 Queries: The <a href="http://newton.dm.unipi.it/neodys/">NEODyS</a> and <a href="http://hamilton.dm.unipi.it/astdys/">AstDyS</a> 
          services (Milani et al., Univ Pisa). 
-
+Warning: Processing may take a few minutes for reports including multiple asteroids, or observations more than 3 days apart
 <br>
 
 <!----------------------------------------->
