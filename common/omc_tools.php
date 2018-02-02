@@ -95,13 +95,13 @@ function formatHTMLTable($array, $header = FALSE) {
 	}
 	$rows = array();
 	foreach($array as $key => $value) {
-		$rows[$key] = "\t<tr><td>" . implode("</td><td>", $value) . "</td></tr>\n";
+		$rows[$key] = "\t<tr><td style=\"text-align:right\">" . implode("</td><td>", $value) . "</td></tr>\n";
 	}
 	if ($header != FALSE) {
-		$htmlH = "\t<tr><th>" . implode("</th><th>", $header) . "</th></tr>\n";
+		$htmlH = "\t<tr><th style=\"text-align:right\">" . implode("</th><th>", $header) . "</th></tr>\n";
 		array_unshift($rows, $htmlH);
 	}
-	$html_table = "\n<table align = \"right\">" .  implode("", $rows) . "</table>\n";
+	$html_table = "\n<table>" .  implode("", $rows) . "</table>\n";
 	return $html_table;
 }
 /**
@@ -642,15 +642,15 @@ function addOC($obs, $eph, $addEmptyRows = FALSE) {
 	$addVals = array();
 	if ($eph == false) {
 		//we didn't find the asteroid, treat it as such
-		$addVals["found"] = "N";
-		
+		$addVals["found"] = "N";	
+	} else {
+	  $addVals["found"] = "Y";
 	}
 	foreach($eph as $key => $ephLine) { //adding numeric RA/dec values
 		$ephLine["al"] = calcDMS($ephLine["RA_h"], $ephLine["RA_m"], $ephLine["RA_s"]) * 15;
 		$ephLine["del"] = calcDMS($ephLine["DEC_d"], $ephLine["DEC_m"], $ephLine["DEC_s"], $ephLine["DEC_sign"]);
 		$eph[$key] = $ephLine;
 	}
-	$addVals["found"] = "Y";
 	$oc = array();
 	foreach($obs as $obsLine) {
 		$newLine = $obsLine;
@@ -667,6 +667,14 @@ function addOC($obs, $eph, $addEmptyRows = FALSE) {
 			$newLine["O-C RA"] = ($obsLine["al"] - $estAl) * 3600.0 * cos(deg2rad($estDel));
 			$newLine["O-C DEC"] = ($obsLine["del"] - $estDel) * 3600.0;
 			$newLine["O-C"] = sqrt($newLine["O-C RA"] * $newLine["O-C RA"] + $newLine["O-C DEC"] * $newLine["O-C DEC"]);
+		} else {
+			$newLine["est_al"] = " ";
+			$newLine["est_del"] = " ";
+			$newLine["est_al_print"] = "Not found";
+			$newLine["est_del_print"] = " ";
+			$newLine["O-C RA"] = " ";
+			$newLine["O-C DEC"] = " ";
+			$newLine["O-C"] = " ";
 		}
 		array_push($oc, $newLine);
 	} 
@@ -703,15 +711,18 @@ function getClosest($obs, $possible, $column, $nr) {
 */
 function formatOMC($data) {
   $keys = array("id", "Date", "RA Observed", "DEC Observed", "RA Calculated", "DEC Calculated", "O-C RA", "O-C DEC", "O-C");
+  $found = $data["found"];
   foreach($data as $key => $value) {
     $data["Date"] = $data["year"] . " " . $data["month"] . " " . $data["day"];
     $data["RA Observed"] = $data["alhr"] . " " .  $data["almin"] . " " . $data["alsec"];
     $data["DEC Observed"] = $data["delsign"] . $data["delgr"] . " " . $data["delmin"] . " " . $data["delsec"];
     $data["RA Calculated"] = $data["est_al_print"];
     $data["DEC Calculated"] = $data["est_del_print"];
-    $data["O-C RA"] = number_format($data["O-C RA"], 2);
-    $data["O-C DEC"] = number_format($data["O-C DEC"], 2);
-    $data["O-C"] = number_format($data["O-C"], 2);
+    if ($found === TRUE) {
+      $data["O-C RA"] = number_format($data["O-C RA"], 2);
+      $data["O-C DEC"] = number_format($data["O-C DEC"], 2);
+      $data["O-C"] = number_format($data["O-C"], 2);
+    } 
   }
   $data = resort($data, $keys);
   return $data;

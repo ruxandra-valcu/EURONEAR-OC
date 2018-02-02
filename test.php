@@ -4,11 +4,12 @@ require_once("common/omc_tools.php");
 
 
 $neaFilename = "MPCReportExample.txt";
+$testFilename = "2011EU29-Stefan.txt";
 //$mbaFilename = "MPC_single_asteroids_mba.txt";
 //$twoFilename = "MPC_two_asteroids_mba_eu.txt";
 
 
-$oc = omc(file_get_contents($neaFilename));
+$oc = omc(file_get_contents($testFilename));
 print_r($oc);																							//prints as PHP array
 file_put_contents("test.txt", formatText($oc, array_keys(reset($oc))))  ;  			//prints as formatted text file
 
