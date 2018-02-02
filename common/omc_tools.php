@@ -95,10 +95,10 @@ function formatHTMLTable($array, $header = FALSE) {
 	}
 	$rows = array();
 	foreach($array as $key => $value) {
-		$rows[$key] = "\t<tr><td style=\"text-align:right\">" . implode("</td><td>", $value) . "</td></tr>\n";
+		$rows[$key] = "\t<tr><td align=right>" . implode("</td><td align=right>", $value) . "</td></tr>\n";
 	}
 	if ($header != FALSE) {
-		$htmlH = "\t<tr><th style=\"text-align:right\">" . implode("</th><th>", $header) . "</th></tr>\n";
+		$htmlH = "\t<tr><th align=right>" . implode("</th><th align=right>", $header) . "</th></tr>\n";
 		array_unshift($rows, $htmlH);
 	}
 	$html_table = "\n<table>" .  implode("", $rows) . "</table>\n";
