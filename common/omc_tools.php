@@ -711,18 +711,15 @@ function getClosest($obs, $possible, $column, $nr) {
 */
 function formatOMC($data) {
   $keys = array("id", "Date", "RA Observed", "DEC Observed", "RA Calculated", "DEC Calculated", "O-C RA", "O-C DEC", "O-C");
-  $found = $data["found"];
   foreach($data as $key => $value) {
     $data["Date"] = $data["year"] . " " . $data["month"] . " " . $data["day"];
     $data["RA Observed"] = $data["alhr"] . " " .  $data["almin"] . " " . $data["alsec"];
     $data["DEC Observed"] = $data["delsign"] . $data["delgr"] . " " . $data["delmin"] . " " . $data["delsec"];
     $data["RA Calculated"] = $data["est_al_print"];
     $data["DEC Calculated"] = $data["est_del_print"];
-    if ($found === TRUE) {
-      $data["O-C RA"] = number_format($data["O-C RA"], 2);
-      $data["O-C DEC"] = number_format($data["O-C DEC"], 2);
-      $data["O-C"] = number_format($data["O-C"], 2);
-    } 
+    $data["O-C RA"] = is_numeric($data["O-C RA"]) ? number_format($data["O-C RA"], 2) : $data["O-C RA"];
+    $data["O-C DEC"] = is_numeric($data["O-C DEC"]) ? number_format($data["O-C DEC"], 2) : $data["O-C DEC"];
+    $data["O-C"] = is_numeric($data["O-C"]) ? number_format($data["O-C"], 2) : $data["O-C"];
   }
   $data = resort($data, $keys);
   return $data;
